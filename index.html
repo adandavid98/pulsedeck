@@ -1,0 +1,616 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PulseDeck · Generador de Flashcards con IA</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090b;--surface:#18181b;--border:#27272a;--border2:#3f3f46;
+  --indigo:#6366f1;--indigo2:#818cf8;--indigo-dim:#1e1b4b;
+  --emerald:#10b981;--emerald-dim:#064e3b;
+  --rose:#f43f5e;--rose-dim:#4c0519;
+  --text:#f4f4f5;--muted:#a1a1aa;--muted2:#71717a;
+  --radius:12px;--radius-sm:8px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:inherit;border:none;outline:none}
+input,textarea,select{font-family:inherit;outline:none;border:none}
+
+/* LAYOUT */
+.app{max-width:1200px;margin:0 auto;padding:0 16px}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--border);margin-bottom:32px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.25rem}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.badge{font-size:11px;font-weight:600;background:var(--indigo-dim);color:var(--indigo2);padding:2px 8px;border-radius:99px;border:1px solid var(--indigo)}
+
+/* TABS */
+.tabs{display:flex;gap:4px;background:var(--surface);padding:4px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:28px}
+.tab{flex:1;padding:8px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;color:var(--muted);background:none;transition:all .2s;text-align:center}
+.tab.active{background:var(--indigo);color:#fff}
+.tab:hover:not(.active){color:var(--text);background:var(--border)}
+
+/* SECTION */
+.section{display:none}.section.active{display:block}
+
+/* CARDS GRID FOR CREATE */
+.create-grid{display:grid;grid-template-columns:1fr;gap:20px}
+@media(min-width:900px){.create-grid{grid-template-columns:1fr 340px}}
+
+/* PANEL */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.panel-title{font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px}
+
+/* UPLOAD AREA */
+.upload-area{border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.upload-area:hover,.upload-area.drag{border-color:var(--indigo);background:var(--indigo-dim)}
+.upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-icon{font-size:32px;margin-bottom:8px}
+.upload-text{font-size:15px;font-weight:500;margin-bottom:4px}
+.upload-hint{font-size:13px;color:var(--muted2)}
+.file-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.file-item{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px}
+.file-item .remove{margin-left:auto;color:var(--muted2);cursor:pointer;padding:2px 6px;border-radius:4px}
+.file-item .remove:hover{color:var(--rose);background:var(--rose-dim)}
+.file-status{font-size:11px;color:var(--muted2)}
+.file-status.ok{color:var(--emerald)}
+.file-status.err{color:var(--rose)}
+
+/* TEXTAREA */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label{font-size:13px;font-weight:500;color:var(--muted)}
+.field textarea,.field input,.field select{background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);font-size:14px;width:100%;transition:border .2s;resize:vertical}
+.field textarea:focus,.field input:focus,.field select:focus{border-color:var(--indigo)}
+.field textarea{min-height:120px}
+select option{background:var(--surface)}
+
+/* SETTINGS */
+.settings-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* BUTTON */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;transition:all .2s}
+.btn-primary{background:var(--indigo);color:#fff;width:100%}
+.btn-primary:hover{background:#4f46e5}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border2)}
+.btn-secondary:hover{border-color:var(--indigo);color:var(--indigo2)}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.spinner.show{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ALERTS */
+.alert{padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px;display:none}
+.alert.show{display:block}
+.alert-error{background:var(--rose-dim);border:1px solid var(--rose);color:#fda4af}
+.alert-success{background:var(--emerald-dim);border:1px solid var(--emerald);color:#6ee7b7}
+.alert-info{background:var(--indigo-dim);border:1px solid var(--indigo);color:var(--indigo2)}
+
+/* PROGRESS BAR */
+.progress-bar{height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:20px;display:none}
+.progress-bar.show{display:block}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--indigo),var(--emerald));width:0%;transition:width .5s}
+
+/* CARDS COUNT */
+.cards-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cards-count{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:4px 12px}
+.export-btns{display:flex;gap:8px}
+
+/* FLASHCARDS GRID */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.card-wrapper{perspective:1000px;height:180px;cursor:pointer}
+.card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,0,.2,1)}
+.card-wrapper.flipped .card-inner{transform:rotateY(180deg)}
+.card-front,.card-back{position:absolute;inset:0;backface-visibility:hidden;border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:8px;border:1px solid var(--border)}
+.card-front{background:var(--surface)}
+.card-back{background:#1c1c27;border-color:var(--indigo);transform:rotateY(180deg)}
+.card-topic{font-size:11px;font-weight:600;color:var(--indigo2);text-transform:uppercase;letter-spacing:.05em}
+.card-text{font-size:14px;line-height:1.5;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical}
+.card-hint{font-size:11px;color:var(--muted2);margin-top:auto}
+.card-back .card-text{color:#c7d2fe}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted2)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-title{font-size:18px;font-weight:600;color:var(--muted);margin-bottom:8px}
+
+/* STUDY MODE */
+.study-section{max-width:700px;margin:0 auto}
+.study-progress-bar{display:flex;gap:3px;margin-bottom:24px}
+.study-seg{flex:1;height:3px;background:var(--border);border-radius:99px;transition:background .3s}
+.study-seg.done{background:var(--emerald)}
+.study-seg.current{background:var(--indigo)}
+.study-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.study-counter{font-size:14px;color:var(--muted)}
+.study-scores{display:flex;gap:16px;font-size:13px;font-weight:600}
+.score-wrong{color:var(--rose)}
+.score-right{color:var(--emerald)}
+.study-card{perspective:1200px;height:320px;cursor:pointer;margin-bottom:20px}
+.study-card .card-inner{transition:transform .6s cubic-bezier(.4,0,.2,1)}
+.study-card.flipped .card-inner{transform:rotateY(180deg)}
+.study-card .card-front,.study-card .card-back{padding:32px;align-items:center;justify-content:center;text-align:center}
+.study-card .card-text{font-size:18px;line-height:1.6;-webkit-line-clamp:8}
+.study-card .card-front .card-text{font-size:20px;font-weight:500}
+.study-card .card-back .card-text{color:#c7d2fe;font-size:17px}
+.study-flip-hint{font-size:13px;color:var(--muted2);text-align:center;margin-bottom:20px}
+.study-actions{display:flex;gap:12px;margin-bottom:24px}
+.study-actions .btn{flex:1;padding:14px}
+.btn-wrong{background:var(--rose-dim);color:#fda4af;border:1px solid var(--rose)}
+.btn-wrong:hover{background:#4c0519}
+.btn-right{background:var(--emerald-dim);color:#6ee7b7;border:1px solid var(--emerald)}
+.btn-right:hover{background:#064e3b}
+.study-nav{display:flex;gap:12px;justify-content:center}
+.study-done{text-align:center;padding:40px 20px}
+.study-done-icon{font-size:56px;margin-bottom:16px}
+.study-done-title{font-size:24px;font-weight:700;margin-bottom:8px}
+.study-done-sub{font-size:15px;color:var(--muted);margin-bottom:24px}
+.study-stats{display:flex;justify-content:center;gap:32px;margin-bottom:24px}
+.stat{text-align:center}
+.stat-num{font-size:32px;font-weight:800}
+.stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.no-cards{text-align:center;padding:60px 20px;color:var(--muted2)}
+
+/* EXPORT SECTION */
+.export-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.export-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;display:flex;flex-direction:column;gap:12px}
+.export-card-icon{font-size:28px}
+.export-card-title{font-size:16px;font-weight:600}
+.export-card-desc{font-size:13px;color:var(--muted);flex:1}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:16px 0}
+
+/* RESPONSIVE */
+@media(max-width:600px){.settings-row{grid-template-columns:1fr}.study-actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      PulseDeck
+    </div>
+    <span class="badge">✨ Powered by Gemini AI</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('create')">🧠 Crear</button>
+    <button class="tab" onclick="switchTab('study')">📖 Estudiar</button>
+    <button class="tab" onclick="switchTab('export')">📤 Exportar</button>
+  </div>
+
+  <!-- ==================== CREATE ==================== -->
+  <section id="sec-create" class="section active">
+    <div class="create-grid">
+      <!-- LEFT: INPUTS -->
+      <div>
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-title">📄 Material de estudio</div>
+          <!-- PDF Upload -->
+          <div class="upload-area" id="uploadArea" ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
+            <input type="file" accept=".pdf" multiple onchange="onFileSelect(event)">
+            <div class="upload-icon">📂</div>
+            <div class="upload-text">Arrastra PDFs aquí o haz clic para seleccionar</div>
+            <div class="upload-hint">Se extraerá el texto automáticamente</div>
+            <div id="fileList" class="file-list"></div>
+          </div>
+          <div class="divider"></div>
+          <!-- Text input -->
+          <div class="field">
+            <label>📝 Transcripción, apuntes o texto (pega aquí tu contenido)</label>
+            <textarea id="textInput" placeholder="Pega aquí el texto de tu clase, apuntes, transcripción de video, o cualquier contenido de estudio..."></textarea>
+          </div>
+        </div>
+
+        <!-- ALERTS -->
+        <div id="alertError" class="alert alert-error"></div>
+        <div id="alertSuccess" class="alert alert-success"></div>
+        <div id="progressBar" class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+
+        <!-- GENERATE BUTTON -->
+        <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+          <div id="btnSpinner" class="spinner"></div>
+          <span id="btnText">⚡ Generar Flashcards con IA</span>
+        </button>
+      </div>
+
+      <!-- RIGHT: SETTINGS -->
+      <div>
+        <div class="panel">
+          <div class="panel-title">⚙️ Configuración</div>
+          <div class="field">
+            <label>Número de tarjetas</label>
+            <input type="number" id="cardCount" value="20" min="5" max="100">
+          </div>
+          <div class="settings-row">
+            <div class="field">
+              <label>Nivel</label>
+              <select id="cardLevel">
+                <option>Básico</option>
+                <option>Intermedio</option>
+                <option selected>Universitario</option>
+                <option>Avanzado</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Idioma</label>
+              <select id="cardLang">
+                <option selected>Español</option>
+                <option>English</option>
+                <option>Português</option>
+                <option>Français</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Tema principal</label>
+            <input type="text" id="cardTopic" placeholder="Ej: Biología celular, Historia...">
+          </div>
+          <div class="field">
+            <label>Instrucciones extra (opcional)</label>
+            <textarea id="cardExtra" placeholder="Ej: Enfócate en definiciones, incluye fórmulas..." style="min-height:80px"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARDS OUTPUT -->
+    <div style="margin-top:24px">
+      <div class="cards-header">
+        <span class="cards-count" id="cardsCount">0 tarjetas</span>
+        <div class="export-btns">
+          <button class="btn btn-secondary" style="font-size:13px;padding:8px 14px" onclick="downloadJSON()">📥 JSON</button>
+          <button class="btn btn-secondary" style="font-size:13px;padding:8px 14px" onclick="downloadAnki()">🃏 Anki</button>
+        </div>
+      </div>
+      <div id="cardsGrid" class="cards-grid">
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="empty-icon">🧠</div>
+          <div class="empty-title">Sin flashcards todavía</div>
+          <div>Sube un PDF o pega texto y haz clic en Generar</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== STUDY ==================== -->
+  <section id="sec-study" class="section">
+    <div class="study-section" id="studyContainer">
+      <div class="no-cards">
+        <div style="font-size:48px;margin-bottom:12px">📚</div>
+        <div style="font-size:18px;font-weight:600;color:var(--muted);margin-bottom:8px">No hay tarjetas para estudiar</div>
+        <div>Ve a "Crear" y genera tus primeras flashcards</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== EXPORT ==================== -->
+  <section id="sec-export" class="section">
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-title">📤 Exportar tarjetas</div>
+      <div id="exportInfo" class="alert alert-info show">Genera tarjetas primero en la pestaña "Crear" para poder exportarlas.</div>
+    </div>
+    <div class="export-grid" id="exportGrid"></div>
+  </section>
+</div>
+
+<script>
+// ==================== STATE ====================
+let cards = [];
+let pdfTexts = [];
+let studyIdx = 0;
+let studyCorrect = 0;
+let studyWrong = 0;
+let studyDone = false;
+
+// ==================== TABS ====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['create','study','export'][i] === tab);
+  });
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + tab).classList.add('active');
+  if (tab === 'study') renderStudy();
+  if (tab === 'export') renderExport();
+}
+
+// ==================== PDF UPLOAD ====================
+function onDrag(e, over) {
+  e.preventDefault();
+  document.getElementById('uploadArea').classList.toggle('drag', over);
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadArea').classList.remove('drag');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.pdf'));
+  files.forEach(processFile);
+}
+function onFileSelect(e) {
+  Array.from(e.target.files).forEach(processFile);
+  e.target.value = '';
+}
+
+async function processFile(file) {
+  const id = Math.random().toString(36).slice(2);
+  addFileItem(id, file.name, 'Procesando...');
+  try {
+    const b64 = await fileToBase64(file);
+    const res = await fetch('/api/pdf', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pdf_base64: b64.split(',')[1]})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error desconocido');
+    pdfTexts.push({name: file.name, text: data.text, pages: data.pages});
+    updateFileItem(id, `✅ ${data.pages} páginas · ${Math.round(data.chars/1000)}k chars`);
+  } catch(err) {
+    updateFileItem(id, `❌ ${err.message}`, true);
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function addFileItem(id, name, status) {
+  const el = document.createElement('div');
+  el.className = 'file-item';
+  el.id = 'file-' + id;
+  el.innerHTML = `<span>📄 ${name}</span><span class="file-status" id="status-${id}">${status}</span><button class="remove" onclick="removeFile('${id}','${name}')">✕</button>`;
+  document.getElementById('fileList').appendChild(el);
+}
+
+function updateFileItem(id, status, isErr = false) {
+  const el = document.getElementById('status-' + id);
+  if (el) { el.textContent = status; el.classList.toggle('ok', !isErr); el.classList.toggle('err', isErr); }
+}
+
+function removeFile(id, name) {
+  const el = document.getElementById('file-' + id);
+  if (el) el.remove();
+  pdfTexts = pdfTexts.filter(p => p.name !== name);
+}
+
+// ==================== GENERATE ====================
+async function generate() {
+  const text = document.getElementById('textInput').value.trim();
+  const allPdf = pdfTexts.map(p => `[PDF: ${p.name}]\n${p.text}`).join('\n\n');
+  const context = [allPdf, text].filter(Boolean).join('\n\n').trim();
+
+  if (!context) {
+    showAlert('error', '⚠️ Sube al menos un PDF o pega texto para generar flashcards.');
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  const spinner = document.getElementById('btnSpinner');
+  const btnTxt = document.getElementById('btnText');
+  btn.disabled = true;
+  spinner.classList.add('show');
+  btnTxt.textContent = 'Generando con IA...';
+  hideAlert('error'); hideAlert('success');
+  showProgress(30);
+
+  try {
+    const prefs = {
+      count: parseInt(document.getElementById('cardCount').value) || 20,
+      level: document.getElementById('cardLevel').value,
+      language: document.getElementById('cardLang').value,
+      topic: document.getElementById('cardTopic').value || 'General',
+      extra: document.getElementById('cardExtra').value
+    };
+
+    showProgress(60);
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({context, prefs})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al generar');
+
+    cards = data.cards || [];
+    showProgress(100);
+    setTimeout(() => hideProgress(), 500);
+    renderCards();
+    showAlert('success', `✅ ¡${cards.length} flashcards generadas correctamente!`);
+    studyIdx = 0; studyCorrect = 0; studyWrong = 0; studyDone = false;
+  } catch(err) {
+    hideProgress();
+    showAlert('error', `❌ ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    spinner.classList.remove('show');
+    btnTxt.textContent = '⚡ Generar Flashcards con IA';
+  }
+}
+
+// ==================== RENDER CARDS ====================
+function renderCards() {
+  const grid = document.getElementById('cardsGrid');
+  const count = document.getElementById('cardsCount');
+  count.textContent = `${cards.length} tarjeta${cards.length !== 1 ? 's' : ''}`;
+
+  if (cards.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🧠</div><div class="empty-title">Sin flashcards todavía</div><div>Sube un PDF o pega texto y haz clic en Generar</div></div>';
+    return;
+  }
+
+  grid.innerHTML = cards.map((c, i) => `
+    <div class="card-wrapper" onclick="this.classList.toggle('flipped')">
+      <div class="card-inner">
+        <div class="card-front">
+          <div class="card-topic">${c.topic}</div>
+          <div class="card-text">${esc(c.question)}</div>
+          <div class="card-hint">👆 Clic para ver respuesta</div>
+        </div>
+        <div class="card-back">
+          <div class="card-topic">Respuesta</div>
+          <div class="card-text">${esc(c.answer)}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ==================== STUDY ====================
+function renderStudy() {
+  const container = document.getElementById('studyContainer');
+  if (cards.length === 0) {
+    container.innerHTML = '<div class="no-cards"><div style="font-size:48px;margin-bottom:12px">📚</div><div style="font-size:18px;font-weight:600;color:var(--muted);margin-bottom:8px">No hay tarjetas para estudiar</div><div>Ve a "Crear" y genera tus primeras flashcards</div></div>';
+    return;
+  }
+  if (studyDone) { renderStudyDone(); return; }
+  const c = cards[studyIdx];
+  const total = cards.length;
+  const segs = Array.from({length: total}, (_,i) => `<div class="study-seg ${i < studyIdx ? 'done' : i === studyIdx ? 'current' : ''}"></div>`).join('');
+
+  container.innerHTML = `
+    <div class="study-progress-bar">${segs}</div>
+    <div class="study-info">
+      <span class="study-counter">${studyIdx + 1} / ${total}</span>
+      <div class="study-scores">
+        <span class="score-wrong">✕ ${studyWrong}</span>
+        <span class="score-right">✓ ${studyCorrect}</span>
+      </div>
+    </div>
+    <div class="study-card" id="studyCard" onclick="flipStudy()">
+      <div class="card-inner">
+        <div class="card-front">
+          <div class="card-topic">${c.topic}</div>
+          <div class="card-text">${esc(c.question)}</div>
+          <div class="card-hint">👆 Clic para ver respuesta</div>
+        </div>
+        <div class="card-back">
+          <div class="card-topic">Respuesta</div>
+          <div class="card-text">${esc(c.answer)}</div>
+        </div>
+      </div>
+    </div>
+    <p class="study-flip-hint">Voltea la tarjeta, luego marca si recordaste correctamente</p>
+    <div class="study-actions">
+      <button class="btn btn-wrong" onclick="markStudy(false)">✕ No recordé</button>
+      <button class="btn btn-right" onclick="markStudy(true)">✓ Lo sabía</button>
+    </div>
+    <div class="study-nav">
+      <button class="btn btn-secondary" onclick="prevStudy()" ${studyIdx === 0 ? 'disabled' : ''} style="font-size:13px;padding:8px 16px">← Anterior</button>
+      <button class="btn btn-secondary" onclick="skipStudy()" style="font-size:13px;padding:8px 16px">Saltar →</button>
+    </div>`;
+}
+
+function flipStudy() {
+  document.getElementById('studyCard')?.classList.toggle('flipped');
+}
+
+function markStudy(correct) {
+  if (correct) studyCorrect++; else studyWrong++;
+  nextStudy();
+}
+
+function skipStudy() { nextStudy(); }
+
+function nextStudy() {
+  studyIdx++;
+  if (studyIdx >= cards.length) { studyDone = true; renderStudyDone(); }
+  else renderStudy();
+}
+
+function prevStudy() {
+  if (studyIdx > 0) { studyIdx--; renderStudy(); }
+}
+
+function renderStudyDone() {
+  const container = document.getElementById('studyContainer');
+  const pct = Math.round((studyCorrect / (studyCorrect + studyWrong || 1)) * 100);
+  container.innerHTML = `
+    <div class="study-done">
+      <div class="study-done-icon">${pct >= 80 ? '🎉' : pct >= 60 ? '👍' : '💪'}</div>
+      <div class="study-done-title">${pct >= 80 ? '¡Excelente!' : pct >= 60 ? '¡Buen trabajo!' : '¡Sigue practicando!'}</div>
+      <div class="study-done-sub">Completaste todas las tarjetas con ${pct}% de precisión</div>
+      <div class="study-stats">
+        <div class="stat"><div class="stat-num" style="color:var(--emerald)">${studyCorrect}</div><div class="stat-label">Correctas</div></div>
+        <div class="stat"><div class="stat-num" style="color:var(--rose)">${studyWrong}</div><div class="stat-label">Incorrectas</div></div>
+        <div class="stat"><div class="stat-num" style="color:var(--indigo2)">${pct}%</div><div class="stat-label">Precisión</div></div>
+      </div>
+      <button class="btn btn-primary" style="max-width:200px;margin:0 auto" onclick="restartStudy()">🔄 Estudiar de nuevo</button>
+    </div>`;
+}
+
+function restartStudy() {
+  studyIdx = 0; studyCorrect = 0; studyWrong = 0; studyDone = false;
+  renderStudy();
+}
+
+// ==================== EXPORT ====================
+function renderExport() {
+  const info = document.getElementById('exportInfo');
+  const grid = document.getElementById('exportGrid');
+  if (cards.length === 0) {
+    info.classList.add('show');
+    grid.innerHTML = '';
+    return;
+  }
+  info.classList.remove('show');
+  grid.innerHTML = `
+    <div class="export-card">
+      <div class="export-card-icon">📄</div>
+      <div class="export-card-title">JSON</div>
+      <div class="export-card-desc">Descarga todas las tarjetas en formato JSON. Ideal para importar en otras aplicaciones o hacer respaldo.</div>
+      <button class="btn btn-secondary" onclick="downloadJSON()">📥 Descargar JSON</button>
+    </div>
+    <div class="export-card">
+      <div class="export-card-icon">🃏</div>
+      <div class="export-card-title">Anki (TSV)</div>
+      <div class="export-card-desc">Formato compatible con Anki. Abre Anki → Archivo → Importar → selecciona el archivo .txt descargado.</div>
+      <button class="btn btn-secondary" onclick="downloadAnki()">📥 Descargar para Anki</button>
+    </div>
+    <div class="export-card">
+      <div class="export-card-icon">📋</div>
+      <div class="export-card-title">Copiar al portapapeles</div>
+      <div class="export-card-desc">Copia todas las preguntas y respuestas en formato legible para pegar en Word, Notion, etc.</div>
+      <button class="btn btn-secondary" onclick="copyCards()">📋 Copiar todo</button>
+    </div>`;
+}
+
+function downloadJSON() {
+  if (!cards.length) return;
+  const blob = new Blob([JSON.stringify({cards, generated: new Date().toISOString()}, null, 2)], {type:'application/json'});
+  download(blob, 'pulsedeck-flashcards.json');
+}
+
+function downloadAnki() {
+  if (!cards.length) return;
+  const tsv = cards.map(c => `${c.question}\t${c.answer}\t${c.topic}`).join('\n');
+  const blob = new Blob([tsv], {type:'text/plain;charset=utf-8'});
+  download(blob, 'pulsedeck-anki.txt');
+}
+
+function copyCards() {
+  const text = cards.map((c,i) => `${i+1}. ${c.question}\n   → ${c.answer}`).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => alert('✅ Copiado al portapapeles'));
+}
+
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+}
+
+// ==================== UTILS ====================
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showAlert(type, msg) { const el = document.getElementById('alert'+type.charAt(0).toUpperCase()+type.slice(1)); el.textContent = msg; el.classList.add('show'); }
+function hideAlert(type) { document.getElementById('alert'+type.charAt(0).toUpperCase()+type.slice(1))?.classList.remove('show'); }
+function showProgress(val) { document.getElementById('progressBar').classList.add('show'); document.getElementById('progressFill').style.width = val+'%'; }
+function hideProgress() { document.getElementById('progressBar').classList.remove('show'); document.getElementById('progressFill').style.width = '0%'; }
+</script>
+</body>
+</html>
