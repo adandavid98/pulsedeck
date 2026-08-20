@@ -24,7 +24,7 @@
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   
-  <!-- PDF.js para lectura local de PDFs -->
+  <!-- PDF.js para lectura de PDFs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 
@@ -65,21 +65,28 @@
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button id="nav-gen-btn" onclick="switchNav('generate')" class="flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium">
+        <button id="nav-gen-btn" onclick="switchNav('generate')" class="flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium cursor-pointer">
           <i data-lucide="sparkles" class="h-4 w-4 text-indigo-400"></i>
           <span>Generar</span>
         </button>
-        <button id="nav-study-btn" onclick="switchNav('study')" class="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium">
+        <button id="nav-study-btn" onclick="switchNav('study')" class="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium cursor-pointer">
           <i data-lucide="layers" class="h-4 w-4"></i>
           <span>Estudiar</span>
           <span id="nav-study-count" class="hidden text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-full font-bold">0</span>
         </button>
+        
+        <!-- BOTON CONFIGURAR API KEY OPCIONAL -->
+        <button onclick="openApiKeyModal()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:text-indigo-300 hover:border-indigo-500/40 transition-colors cursor-pointer">
+          <i data-lucide="key" class="h-3.5 w-3.5 text-indigo-400"></i>
+          <span id="nav-key-status">API Key</span>
+        </button>
+
         <div class="flex items-center rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5 ml-1">
-          <button onclick="exportCardsPDF()" class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors">
+          <button onclick="exportCardsPDF()" class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer">
             <i data-lucide="file-down" class="h-3.5 w-3.5"></i>
             <span>PDF</span>
           </button>
-          <button onclick="exportCardsAnki()" class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors">
+          <button onclick="exportCardsAnki()" class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer">
             <i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
             <span>Anki</span>
           </button>
@@ -90,19 +97,39 @@
     <!-- ==================== VISTA 1: GENERADOR ==================== -->
     <div id="view-generate" class="flex flex-col gap-5 w-full">
       
+      <!-- BANNER DE ALERTA DINAMICO SI GOOGLE DA ERROR -->
+      <div id="api-alert-banner" class="hidden rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-200">
+        <div class="flex items-start gap-3">
+          <i data-lucide="alert-triangle" class="h-5 w-5 text-amber-400 shrink-0 mt-0.5"></i>
+          <div class="flex-1 text-xs leading-relaxed">
+            <p class="font-bold text-amber-100" id="api-alert-title">Google Gemini no pudo responder</p>
+            <p class="mt-0.5 text-amber-200/90" id="api-alert-desc">
+              Tus flashcards fueron generadas al instante con el <b>Motor Local Autónomo</b>.
+            </p>
+            <button onclick="openApiKeyModal()" class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-2.5 py-1 text-[11px] font-semibold text-amber-100 transition-colors cursor-pointer">
+              <i data-lucide="key" class="h-3 w-3"></i>
+              <span>Configurar API Key / Vercel</span>
+            </button>
+          </div>
+          <button onclick="document.getElementById('api-alert-banner').classList.add('hidden')" class="text-amber-400/80 hover:text-amber-200 p-1">
+            <i data-lucide="x" class="h-4 w-4"></i>
+          </button>
+        </div>
+      </div>
+
       <!-- HERO ACADEMICO -->
       <section class="col-span-12 rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/90 to-zinc-950 p-6 sm:p-8 relative overflow-hidden shadow-xl shadow-black/40">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div class="flex-1 min-w-0 flex flex-col justify-center">
             <div class="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 mb-3 self-start">
               <i data-lucide="sparkles" class="h-3.5 w-3.5 text-indigo-400"></i>
-              <span class="text-xs font-medium text-indigo-300">Generador Inteligente de Flashcards</span>
+              <span class="text-xs font-medium text-indigo-300">Generador Inteligente Dual (Gemini IA & Local)</span>
             </div>
             <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-zinc-100 leading-tight">
               Convierte PDFs, videos y apuntes en tarjetas de estudio activo
             </h1>
             <p class="mt-3 max-w-xl text-sm sm:text-base text-zinc-400 leading-relaxed">
-              Sube tus archivos o pega transcripciones de clase. Nuestra IA analiza los conceptos clave y estructura mazos optimizados para repetición espaciada en tu navegador.
+              Sube tus archivos o pega transcripciones. Elige entre el motor <b class="text-zinc-200">Google Gemini Flash</b> (servidor Vercel o API Key) o el <b class="text-zinc-200">Motor Local Autónomo</b> para estructurar mazos listos para memorización.
             </p>
             <div class="mt-5 flex flex-wrap items-center gap-3">
               <a href="#upload-section" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-indigo-600/30 transition-all">
@@ -111,7 +138,7 @@
               </a>
               <div class="inline-flex items-center gap-2 px-2 py-1">
                 <i data-lucide="shield-check" class="h-4 w-4 text-emerald-400"></i>
-                <span id="sources-badge" class="text-xs font-medium text-zinc-400">Almacenamiento temporal privado</span>
+                <span id="sources-badge" class="text-xs font-medium text-zinc-400">100% Seguro y Privado</span>
               </div>
             </div>
           </div>
@@ -120,9 +147,9 @@
             <div class="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-4 sm:p-5">
               <div class="flex items-center justify-between pb-3 border-b border-zinc-800/60 mb-4">
                 <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Pipeline de generación</span>
-                <span class="text-[10px] font-medium text-emerald-400 flex items-center gap-1.5">
+                <span id="hero-engine-indicator" class="text-[10px] font-medium text-emerald-400 flex items-center gap-1.5">
                   <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Gemini 3.6 Flash Activo
+                  Gemini Flash + Local Listo
                 </span>
               </div>
               <div class="grid grid-cols-4 gap-2 text-center">
@@ -133,8 +160,8 @@
                 </div>
                 <div class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
                   <i data-lucide="cpu" class="h-4 w-4 text-indigo-400"></i>
-                  <span class="text-[11px] font-semibold text-zinc-200">2. IA</span>
-                  <span class="text-[9px] text-zinc-500">Extracción</span>
+                  <span class="text-[11px] font-semibold text-zinc-200">2. Motor</span>
+                  <span class="text-[9px] text-zinc-500">Gemini / Local</span>
                 </div>
                 <div class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
                   <i data-lucide="layers" class="h-4 w-4 text-indigo-400"></i>
@@ -161,7 +188,7 @@
                 <span class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Fuente principal</span>
                 <h2 class="text-lg font-bold tracking-tight text-zinc-100">Carga de PDFs y Documentos</h2>
               </div>
-              <button onclick="clearAllMaterials()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors">
+              <button onclick="clearAllMaterials()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors cursor-pointer">
                 <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                 <span>Limpiar</span>
               </button>
@@ -198,11 +225,11 @@
               <h2 class="text-lg font-bold tracking-tight text-zinc-100">Enlace o Transcripción</h2>
             </div>
             <div class="mt-3.5 flex gap-1 rounded-lg border border-zinc-800 bg-zinc-950/60 p-1">
-              <button id="src-tab-link" onclick="setSourceTab('link')" class="flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+              <button id="src-tab-link" onclick="setSourceTab('link')" class="flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer">
                 <i data-lucide="link-2" class="h-3.5 w-3.5"></i>
                 <span>Enlace Web</span>
               </button>
-              <button id="src-tab-text" onclick="setSourceTab('text')" class="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs">
+              <button id="src-tab-text" onclick="setSourceTab('text')" class="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs cursor-pointer">
                 <i data-lucide="align-left" class="h-3.5 w-3.5"></i>
                 <span>Transcripción</span>
               </button>
@@ -235,25 +262,42 @@
               </div>
             </div>
           </div>
-          <button onclick="addManualSource()" class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700/80 border border-zinc-700/80 px-3.5 py-2 text-xs font-medium text-zinc-100 transition-colors shadow-xs">
+          <button onclick="addManualSource()" class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700/80 border border-zinc-700/80 px-3.5 py-2 text-xs font-medium text-zinc-100 transition-colors shadow-xs cursor-pointer">
             <i data-lucide="plus" class="h-3.5 w-3.5"></i>
             <span>Añadir al material</span>
           </button>
         </section>
       </div>
 
-      <!-- PREFERENCIAS DEL MAZO -->
+      <!-- PREFERENCIAS DEL MAZO Y SELECTOR DE MOTOR -->
       <section class="col-span-12 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-5 shadow-lg shadow-black/20">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div class="flex flex-col">
             <span class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Configuración</span>
-            <h2 class="text-lg font-bold tracking-tight text-zinc-100">Preferencias del Mazo</h2>
-            <p class="mt-0.5 text-xs text-zinc-400">Ajusta la cantidad, dificultad y formato deseado antes de generar.</p>
+            <h2 class="text-lg font-bold tracking-tight text-zinc-100">Preferencias del Mazo & Motor de IA</h2>
+            <p class="mt-0.5 text-xs text-zinc-400">Elige el motor de procesamiento, cantidad y formato deseado.</p>
           </div>
         </div>
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          
+          <!-- SELECTOR DE MOTOR -->
           <div>
-            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Cantidad de tarjetas</label>
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-indigo-300 flex items-center gap-1">
+              <i data-lucide="cpu" class="h-3 w-3"></i>
+              <span>Motor de Generación</span>
+            </label>
+            <div class="relative">
+              <select id="pref-engine" class="w-full appearance-none rounded-lg border border-indigo-500/40 bg-zinc-950 px-3 py-2 text-xs font-medium text-indigo-200 outline-none focus:border-indigo-400 cursor-pointer">
+                <option value="gemini" selected>✨ Gemini Flash IA (Google)</option>
+                <option value="local">⚡ Motor Local Autónomo (Offline)</option>
+              </select>
+              <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400"></i>
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Cantidad</label>
             <div class="relative">
               <select id="pref-count" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
                 <option value="5">5 tarjetas</option>
@@ -265,8 +309,9 @@
               <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
             </div>
           </div>
+
           <div>
-            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Dificultad pedagógica</label>
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Dificultad</label>
             <div class="relative">
               <select id="pref-difficulty" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
                 <option value="Básica">Básica</option>
@@ -277,8 +322,9 @@
               <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
             </div>
           </div>
+
           <div>
-            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Idioma de salida</label>
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Idioma</label>
             <div class="relative">
               <select id="pref-lang" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
                 <option value="Español" selected>Español</option>
@@ -288,12 +334,13 @@
               <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
             </div>
           </div>
+
           <div>
             <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Estilo de pregunta</label>
             <div class="relative">
               <select id="pref-style" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
                 <option value="Directa" selected>Pregunta directa</option>
-                <option value="Caso práctico">Caso práctico / Aplicado</option>
+                <option value="Caso práctico">Caso práctico</option>
                 <option value="Concepto clave">Concepto clave</option>
               </select>
               <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
@@ -303,11 +350,11 @@
 
         <div class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-zinc-800/80 pt-4">
           <div class="flex flex-wrap items-center gap-2">
-            <button id="toggle-def-btn" onclick="toggleDef()" class="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+            <button id="toggle-def-btn" onclick="toggleDef()" class="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 cursor-pointer">
               <i data-lucide="check" class="h-3.5 w-3.5 text-emerald-400"></i>
               <span>Definiciones precisas</span>
             </button>
-            <button id="toggle-ex-btn" onclick="toggleEx()" class="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors">
+            <button id="toggle-ex-btn" onclick="toggleEx()" class="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors cursor-pointer">
               <i data-lucide="plus" class="h-3.5 w-3.5 text-zinc-500"></i>
               <span>Ejemplos prácticos</span>
             </button>
@@ -339,27 +386,22 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="executeGeneration()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors">
+            <button onclick="executeGeneration()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer">
               <i data-lucide="refresh-cw" class="h-3.5 w-3.5 text-indigo-400"></i>
               <span>Regenerar</span>
             </button>
-            <button onclick="switchNav('study')" class="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3.5 py-1.5 text-xs font-medium text-white shadow-md shadow-indigo-600/20 transition-all">
+            <button onclick="switchNav('study')" class="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3.5 py-1.5 text-xs font-medium text-white shadow-md shadow-indigo-600/20 transition-all cursor-pointer">
               <i data-lucide="play" class="h-3.5 w-3.5 fill-current"></i>
               <span>Estudiar Mazo</span>
             </button>
           </div>
         </div>
 
-        <div id="fallback-warning-banner" class="hidden mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
-          <i data-lucide="alert-triangle" class="h-4 w-4 shrink-0 text-amber-400"></i>
-          <span><b>Aviso de Respaldo:</b> La IA de Google experimentó alta demanda. Las flashcards fueron generadas al instante con el <b>Motor Inteligente del Sistema Local</b> para no interrumpir tu estudio.</span>
-        </div>
-
         <div id="deck-cards-container" class="mt-5">
           <div class="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-zinc-800 bg-zinc-950/30">
             <i data-lucide="layers" class="h-8 w-8 text-zinc-600 mb-3"></i>
             <p class="text-sm font-semibold text-zinc-300">Aún no has generado ninguna tarjeta</p>
-            <p class="mt-1 text-xs text-zinc-500 max-w-sm">Añade PDFs o notas arriba y haz clic en «Generar Flashcards» para crear tu mazo inteligente.</p>
+            <p class="mt-1 text-xs text-zinc-500 max-w-sm">Añade PDFs o notas arriba y haz clic en «Generar Flashcards» para crear tu mazo.</p>
           </div>
         </div>
       </section>
@@ -376,7 +418,7 @@
           <p class="mt-1 text-xs sm:text-sm text-zinc-400 max-w-xl">Evalúa tu nivel de recuerdo en cada tarjeta para optimizar los intervalos de repetición espaciada.</p>
         </div>
         <div class="flex items-center gap-1.5 rounded-full bg-zinc-900 border border-zinc-800 px-3 py-1 self-start md:self-auto">
-          <i data-lucide="layers" class="h-3.5 w-3.5 text-indigo-400"></i>
+          <i data-lucide="database" class="h-3.5 w-3.5 text-indigo-400"></i>
           <span class="text-xs font-medium text-zinc-300">Memoria local sincronizada</span>
         </div>
       </div>
@@ -488,15 +530,15 @@
           <div class="w-full rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-4 shadow-md">
             <p class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Filtrar por tema</p>
             <div id="study-topic-chips" class="mt-2.5 flex flex-wrap gap-1.5">
-              <button onclick="filterStudyTopic('Todos')" class="rounded-md bg-indigo-600 border border-indigo-500 px-2.5 py-1 text-xs font-medium text-white shadow-xs">Todos</button>
+              <button onclick="filterStudyTopic('Todos')" class="rounded-md bg-indigo-600 border border-indigo-500 px-2.5 py-1 text-xs font-medium text-white shadow-xs cursor-pointer">Todos</button>
             </div>
             
             <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-800/80 pt-3">
-              <button id="btn-only-pending" onclick="toggleOnlyPending()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors">
+              <button id="btn-only-pending" onclick="toggleOnlyPending()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors cursor-pointer">
                 <i data-lucide="plus" class="h-3.5 w-3.5 text-zinc-500"></i>
                 <span>Solo pendientes</span>
               </button>
-              <button onclick="resetStudySession()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors">
+              <button onclick="resetStudySession()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors cursor-pointer">
                 <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>
                 <span>Reiniciar</span>
               </button>
@@ -524,7 +566,7 @@
         <i data-lucide="layers" class="h-10 w-10 text-zinc-600 mb-3"></i>
         <h3 class="text-lg font-bold text-zinc-100">No hay tarjetas disponibles para estudiar</h3>
         <p class="mt-1 text-xs text-zinc-400 max-w-md">Genera un mazo con tu material o desmarca los filtros de tema para retomar tu sesión.</p>
-        <button onclick="switchNav('generate')" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-medium text-white shadow-md shadow-indigo-600/30 transition-all">
+        <button onclick="switchNav('generate')" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-medium text-white shadow-md shadow-indigo-600/30 transition-all cursor-pointer">
           <i data-lucide="sparkles" class="h-4 w-4"></i>
           <span>Ir al generador de flashcards</span>
         </button>
@@ -534,16 +576,103 @@
 
   </div>
 
-  <!-- JAVASCRIPT DE LOGICA Y ESTADO COMPLETO -->
+  <!-- MODAL PARA CONFIGURAR API KEY DE GOOGLE -->
+  <div id="api-key-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="key" class="h-5 w-5 text-indigo-400"></i>
+          <h3 class="text-base font-bold text-zinc-100">Configurar Gemini API Key</h3>
+        </div>
+        <button onclick="closeApiKeyModal()" class="text-zinc-500 hover:text-zinc-300 p-1">
+          <i data-lucide="x" class="h-4 w-4"></i>
+        </button>
+      </div>
+      
+      <div class="mt-4 space-y-3">
+        <p class="text-xs text-zinc-400 leading-relaxed">
+          <b>En Vercel:</b> Si ya agregaste <code class="text-emerald-300">GEMINI_API_KEY</code> a las Environment Variables de Vercel, no necesitas hacer nada aquí; el servidor la usará automáticamente.<br><br>
+          <b>Opcional para local / GitHub Pages:</b> Puedes ingresar tu API Key personal de Google AI Studio (empieza por <code class="text-indigo-300">AIzaSy...</code>) y se guardará únicamente en tu navegador.
+        </p>
+        <div>
+          <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Google Gemini API Key</label>
+          <input type="password" id="input-api-key-modal" placeholder="AIzaSy..." class="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-zinc-500">
+          <span>¿No tienes una clave?</span>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-1">
+            <span>Obtener gratis en Google AI Studio</span>
+            <i data-lucide="external-link" class="h-3 w-3"></i>
+          </a>
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-end gap-2">
+        <button onclick="clearCustomApiKey()" class="rounded-lg border border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors">
+          Borrar clave
+        </button>
+        <button onclick="saveApiKeyModal()" class="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 text-xs font-medium text-white shadow-md transition-colors">
+          Guardar y Activar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT: MOTOR DUAL INTELIGENTE (VERCEL SERVERLESS / DIRECT API / LOCAL AUTÓNOMO) -->
   <script>
-    // CONFIGURACIÓN DE IA (Ofuscada para escáneres públicos de GitHub)
-    const _k = "QVEuQWI4Uk42SUppbmZ6YkFUOXpLTlNydThYVjUza2cwRHN6WXNlZGJScTFQTEphR0xzY3c=";
-    const GEMINI_API_KEY = localStorage.getItem('pulsedeck_custom_api_key') || atob(_k);
-    
+    function getActiveApiKey() {
+      return localStorage.getItem('pulsedeck_custom_api_key') || "";
+    }
+
+    function updateApiKeyStatusUI() {
+      const key = getActiveApiKey();
+      const statusBtn = document.getElementById('nav-key-status');
+      if (statusBtn) {
+        if (key && key.trim().length > 10) {
+          statusBtn.textContent = "API Key Activa ✓";
+          statusBtn.parentElement.className = "flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-300 transition-colors cursor-pointer";
+        } else {
+          statusBtn.textContent = "API Key / Vercel";
+          statusBtn.parentElement.className = "flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:text-indigo-300 hover:border-indigo-500/40 transition-colors cursor-pointer";
+        }
+      }
+    }
+
+    function openApiKeyModal() {
+      const modal = document.getElementById('api-key-modal');
+      const input = document.getElementById('input-api-key-modal');
+      input.value = getActiveApiKey();
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeApiKeyModal() {
+      document.getElementById('api-key-modal').classList.add('hidden');
+    }
+
+    function saveApiKeyModal() {
+      const val = document.getElementById('input-api-key-modal').value.trim();
+      if (val) {
+        localStorage.setItem('pulsedeck_custom_api_key', val);
+      } else {
+        localStorage.removeItem('pulsedeck_custom_api_key');
+      }
+      updateApiKeyStatusUI();
+      closeApiKeyModal();
+      document.getElementById('api-alert-banner').classList.add('hidden');
+    }
+
+    function clearCustomApiKey() {
+      localStorage.removeItem('pulsedeck_custom_api_key');
+      document.getElementById('input-api-key-modal').value = '';
+      updateApiKeyStatusUI();
+      closeApiKeyModal();
+    }
+
     // ESTADO GLOBAL
     let materials = [];
     let flashcards = [];
-    let cardStatuses = {}; // id -> 'pending' | 'learned' | 'review'
+    let cardStatuses = {};
     let currentStudyIndex = 0;
     let selectedTopic = 'Todos';
     let onlyPending = false;
@@ -564,6 +693,7 @@
 
     function loadFromStorage() {
       try {
+        updateApiKeyStatusUI();
         const savedCards = localStorage.getItem('pulsedeck_flashcards');
         const savedStatuses = localStorage.getItem('pulsedeck_card_statuses');
         const savedMats = localStorage.getItem('pulsedeck_materials');
@@ -598,13 +728,13 @@
       if (tab === 'generate') {
         genView.classList.remove('hidden');
         studyView.classList.add('hidden');
-        genBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium";
-        studyBtn.className = "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium";
+        genBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium cursor-pointer";
+        studyBtn.className = "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium cursor-pointer";
       } else {
         genView.classList.add('hidden');
         studyView.classList.remove('hidden');
-        studyBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium";
-        genBtn.className = "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium";
+        studyBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium cursor-pointer";
+        genBtn.className = "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium cursor-pointer";
         renderStudySession();
       }
       lucide.createIcons();
@@ -618,13 +748,13 @@
       const textInput = document.getElementById('src-input-text');
 
       if (mode === 'link') {
-        linkTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs";
-        textTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors";
+        linkTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs cursor-pointer";
+        textTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer";
         linkInput.classList.remove('hidden');
         textInput.classList.add('hidden');
       } else {
-        textTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs";
-        linkTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors";
+        textTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs cursor-pointer";
+        linkTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer";
         textInput.classList.remove('hidden');
         linkInput.classList.add('hidden');
       }
@@ -635,8 +765,8 @@
       incDefinitions = !incDefinitions;
       const btn = document.getElementById('toggle-def-btn');
       btn.className = incDefinitions 
-        ? "flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300"
-        : "flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors";
+        ? "flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 cursor-pointer"
+        : "flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors cursor-pointer";
       btn.innerHTML = `<i data-lucide="${incDefinitions ? 'check' : 'plus'}" class="h-3.5 w-3.5 ${incDefinitions ? 'text-emerald-400' : 'text-zinc-500'}"></i><span>Definiciones precisas</span>`;
       lucide.createIcons();
     }
@@ -645,8 +775,8 @@
       incExamples = !incExamples;
       const btn = document.getElementById('toggle-ex-btn');
       btn.className = incExamples 
-        ? "flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300"
-        : "flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors";
+        ? "flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 cursor-pointer"
+        : "flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors cursor-pointer";
       btn.innerHTML = `<i data-lucide="${incExamples ? 'check' : 'plus'}" class="h-3.5 w-3.5 ${incExamples ? 'text-emerald-400' : 'text-zinc-500'}"></i><span>Ejemplos prácticos</span>`;
       lucide.createIcons();
     }
@@ -675,7 +805,7 @@
           name: file.name,
           kind: 'pdf',
           size_label: `${Math.round(file.size / 1024)} KB`,
-          topic: 'Documento',
+          topic: file.name.replace('.pdf', ''),
           status: 'procesando',
           text: ''
         };
@@ -686,7 +816,7 @@
           const buffer = await file.arrayBuffer();
           const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
           let fullText = '';
-          const maxP = Math.min(pdf.numPages, 40);
+          const maxP = Math.min(pdf.numPages, 50);
           for (let p = 1; p <= maxP; p++) {
             const page = await pdf.getPage(p);
             const content = await page.getTextContent();
@@ -698,6 +828,7 @@
         } catch (e) {
           item.status = 'error';
         }
+        saveToStorage();
         renderMaterials();
       }
     }
@@ -716,7 +847,7 @@
           size_label: level,
           topic: topic,
           status: 'listo',
-          text: `[Enlace: ${url} · Tema: ${topic} · Nivel: ${level}]`
+          text: `Conceptos clave y fundamentos de ${topic}: Enlace de referencia ${url}`
         });
         document.getElementById('input-url').value = '';
       } else {
@@ -733,16 +864,19 @@
         });
         document.getElementById('input-text').value = '';
       }
+      saveToStorage();
       renderMaterials();
     }
 
     function removeMaterial(id) {
       materials = materials.filter(m => m.id !== id);
+      saveToStorage();
       renderMaterials();
     }
 
     function clearAllMaterials() {
       materials = [];
+      saveToStorage();
       renderMaterials();
     }
 
@@ -763,7 +897,7 @@
           </div>
         `;
         sourcesText.textContent = "Adjunta material primero";
-        heroBadge.textContent = "Almacenamiento temporal privado";
+        heroBadge.textContent = "100% Seguro y Privado";
         generateBtn.disabled = true;
         generateBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-500 cursor-not-allowed transition-all";
       } else {
@@ -781,10 +915,10 @@
                   </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                  <span class="rounded-full ${m.status === 'listo' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse'} px-2 py-0.5 text-[10px] font-semibold">
-                    ${m.status === 'listo' ? 'Listo' : 'Procesando'}
+                  <span class="rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 text-[10px] font-semibold">
+                    Listo
                   </span>
-                  <button onclick="removeMaterial('${m.id}')" class="rounded-md p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors">
+                  <button onclick="removeMaterial('${m.id}')" class="rounded-md p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors cursor-pointer">
                     <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                   </button>
                 </div>
@@ -800,75 +934,132 @@
       lucide.createIcons();
     }
 
-    // GENERADOR INTELIGENTE LOCAL (RESPALDO EN CASO DE FALLO DE LA IA)
-    function generateLocalFallback(text, count, topic) {
+    // ==================== MOTOR LOCAL INTELIGENTE ====================
+    function generateSmartLocalCards(text, count, defaultTopic, difficulty, style) {
       const cards = [];
-      const lines = text.split(/\n+/).map(l => l.trim()).filter(l => l.length > 20);
-      
-      for (const line of lines) {
+      const seenQuestions = new Set();
+
+      const cleanText = text.replace(/\r\n/g, '\n').replace(/\t/g, ' ');
+      const rawSentences = cleanText.split(/[\n\.\?\!]+/).map(s => s.trim()).filter(s => s.length > 25);
+
+      for (const sent of rawSentences) {
         if (cards.length >= count) break;
-        if (line.includes(':') || line.includes(' - ') || line.includes(' es ') || line.includes(' son ')) {
-          let parts = [];
-          if (line.includes(':')) parts = line.split(':');
-          else if (line.includes(' - ')) parts = line.split(' - ');
-          else if (line.includes(' es ')) parts = line.split(' es ');
-          
-          if (parts.length >= 2 && parts[0].trim().length > 3 && parts[1].trim().length > 10) {
-            cards.push({
-              id: Math.random().toString(36).substr(2, 9),
-              question: `¿Qué define o en qué consiste: «${parts[0].trim()}»?`,
-              answer: parts[1].trim(),
-              topic: topic || 'Concepto clave',
-              tags: ['fundamento']
-            });
-            continue;
+
+        let term = '';
+        let definition = '';
+
+        if (sent.includes(':')) {
+          const parts = sent.split(':');
+          if (parts.length >= 2 && parts[0].trim().length >= 3 && parts[0].trim().length <= 50 && parts[1].trim().length >= 15) {
+            term = parts[0].trim();
+            definition = parts[1].trim();
           }
+        } else if (sent.toLowerCase().includes(' se define como ')) {
+          const parts = sent.split(/ se define como /i);
+          if (parts.length >= 2 && parts[0].trim().length <= 50) {
+            term = parts[0].trim();
+            definition = parts[1].trim();
+          }
+        } else if (sent.toLowerCase().includes(' consiste en ')) {
+          const parts = sent.split(/ consiste en /i);
+          if (parts.length >= 2 && parts[0].trim().length <= 50) {
+            term = parts[0].trim();
+            definition = 'Consiste en ' + parts[1].trim();
+          }
+        } else if (sent.includes(' - ') && sent.split(' - ')[0].trim().length <= 40) {
+          const parts = sent.split(' - ');
+          term = parts[0].trim();
+          definition = parts[1].trim();
         }
-        
-        if (line.length > 30 && line.length < 250) {
+
+        if (term && definition && !seenQuestions.has(term.toLowerCase())) {
+          seenQuestions.add(term.toLowerCase());
+          
+          let questionStr = `¿En qué consiste o cómo se define «${term}»?`;
+          if (style === 'Caso práctico') questionStr = `¿Cuál es el rol práctico y la aplicación de «${term}»?`;
+          else if (style === 'Concepto clave') questionStr = `¿Cuál es el principio fundamental detrás de «${term}»?`;
+
           cards.push({
-            id: Math.random().toString(36).substr(2, 9),
-            question: `Explica la importancia y el significado del siguiente concepto en ${topic || 'el tema'}:`,
-            answer: line,
-            topic: topic || 'General',
-            tags: ['repaso']
+            id: 'c-' + Math.random().toString(36).substr(2, 9),
+            question: questionStr,
+            answer: definition.charAt(0).toUpperCase() + definition.slice(1),
+            topic: defaultTopic || term,
+            tags: ['definición', 'fundamento']
           });
         }
       }
 
-      while (cards.length < Math.min(count, 5) && lines.length > 0) {
-        const sample = lines[cards.length % lines.length];
+      const questionTemplates = [
+        (s) => `¿Cuál es la importancia del siguiente principio en ${defaultTopic}?`,
+        (s) => `Explica el siguiente concepto clave de estudio:`,
+        (s) => `¿Qué aspecto fundamental se describe a continuación?`,
+        (s) => `¿Cómo se fundamenta este elemento en ${defaultTopic}?`,
+        (s) => `Analiza y describe la siguiente idea central:`
+      ];
+
+      for (let i = 0; i < rawSentences.length && cards.length < count; i++) {
+        const sent = rawSentences[i];
+        if (sent.length < 35 || sent.length > 280) continue;
+        if (seenQuestions.has(sent.slice(0, 30))) continue;
+        seenQuestions.add(sent.slice(0, 30));
+
+        const tmpl = questionTemplates[cards.length % questionTemplates.length];
         cards.push({
-          id: Math.random().toString(36).substr(2, 9),
-          question: `¿Cuál es el punto central explicado en esta sección de ${topic || 'estudio'}?`,
-          answer: sample,
-          topic: topic || 'Resumen',
-          tags: ['esencial']
+          id: 'c-' + Math.random().toString(36).substr(2, 9),
+          question: tmpl(sent),
+          answer: sent.charAt(0).toUpperCase() + sent.slice(1),
+          topic: defaultTopic || 'General',
+          tags: ['análisis', 'repaso']
         });
       }
+
+      let fallbackIdx = 0;
+      while (cards.length < count && rawSentences.length > 0) {
+        const fallbackSent = rawSentences[fallbackIdx % rawSentences.length];
+        cards.push({
+          id: 'c-' + Math.random().toString(36).substr(2, 9),
+          question: `Punto clave #${cards.length + 1} de repaso en ${defaultTopic}:`,
+          answer: fallbackSent,
+          topic: defaultTopic || 'Resumen',
+          tags: ['esencial']
+        });
+        fallbackIdx++;
+      }
+
       return cards;
     }
 
-    // GENERACION DE FLASHCARDS CON GEMINI AI
+    // ==================== GENERACION DUAL (VERCEL / DIRECT API / LOCAL) ====================
     async function executeGeneration() {
       const readyMaterials = materials.filter(m => m.status === 'listo');
-      if (readyMaterials.length === 0) return alert('Sube al menos un PDF o texto antes de generar.');
+      if (readyMaterials.length === 0) return alert('Sube al menos un PDF o añade texto antes de generar.');
 
+      const engineChoice = document.getElementById('pref-engine').value;
       const count = parseInt(document.getElementById('pref-count').value) || 15;
       const difficulty = document.getElementById('pref-difficulty').value;
       const lang = document.getElementById('pref-lang').value;
       const style = document.getElementById('pref-style').value;
+      const defaultTopic = document.getElementById('input-topic').value.trim() || readyMaterials[0].topic || 'General';
 
       const btn = document.getElementById('btn-generate-main');
       const btnText = document.getElementById('btn-generate-text');
+      const alertBanner = document.getElementById('api-alert-banner');
+      alertBanner.classList.add('hidden');
+
       btn.disabled = true;
-      btn.className = "flex items-center gap-2 rounded-lg bg-indigo-700/80 px-5 py-2 text-sm font-medium text-white shadow-md animate-pulse cursor-wait";
-      btnText.innerHTML = `<i data-lucide="loader-circle" class="h-4 w-4 animate-spin inline mr-1"></i> Generando con IA...`;
-      lucide.createIcons();
+      btn.className = "flex items-center gap-2 rounded-lg bg-indigo-700 px-5 py-2 text-sm font-medium text-white shadow-md animate-pulse cursor-wait";
+      
+      const combinedText = readyMaterials.map(m => `[FUENTE: ${m.name}]\n${m.text}`).join('\n\n');
+      let cardsResult = null;
+      let usedLocal = false;
+      let geminiErrorReason = null;
 
-      const combinedText = readyMaterials.map(m => `[FUENTE: ${m.name} (${m.topic})]\n${m.text}`).join('\n\n');
+      // SI ELIGE GEMINI IA
+      if (engineChoice === 'gemini') {
+        btnText.innerHTML = `<i data-lucide="sparkles" class="h-4 w-4 animate-spin inline mr-1"></i> Consultando Gemini Flash IA...`;
+        lucide.createIcons();
 
-      const prompt = `Eres un pedagogo experto. Genera exactamente ${count} flashcards de estudio de alta calidad basadas en el siguiente material.
+        const prompt = `Eres un pedagogo experto. Genera exactamente ${count} flashcards de estudio de alta calidad basadas en el siguiente material.
 
 CONFIGURACIÓN:
 - Cantidad: ${count} tarjetas
@@ -879,65 +1070,98 @@ ${incDefinitions ? '- Incluir definiciones conceptuales precisas.' : ''}
 ${incExamples ? '- Incluir ejemplos prácticos.' : ''}
 
 MATERIAL DE ESTUDIO:
-${combinedText.slice(0, 35000)}
+${combinedText.slice(0, 30000)}
 
 RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
 {
   "cards": [
     {
-      "question": "Pregunta clara y analítica",
-      "answer": "Respuesta concisa y completa",
-      "topic": "Subtema",
+      "question": "Pregunta clara",
+      "answer": "Respuesta pedagógica",
+      "topic": "${defaultTopic}",
       "tags": ["tag1", "tag2"]
     }
   ]
 }`;
 
-      const models = ['gemini-3.6-flash', 'gemini-3.1-pro-preview'];
-      let cardsGenerated = null;
-      let isLocalEngine = false;
-
-      for (const mod of models) {
+        // PASO 1: Intentar llamar al backend serverless de Vercel (/api/generate)
         try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${GEMINI_API_KEY}`, {
+          const vercelRes = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { response_mime_type: "application/json" }
-            })
+            body: JSON.stringify({ prompt, count, topic: defaultTopic })
           });
-          if (res.ok) {
-            const data = await res.json();
-            const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-            const parsed = JSON.parse(raw);
-            if (parsed.cards && Array.isArray(parsed.cards)) {
-              cardsGenerated = parsed.cards.map(c => ({
-                id: Math.random().toString(36).substr(2, 9),
+
+          if (vercelRes.ok) {
+            const json = await vercelRes.json();
+            if (json.cards && Array.isArray(json.cards) && json.cards.length > 0) {
+              cardsResult = json.cards.map(c => ({
+                id: 'c-' + Math.random().toString(36).substr(2, 9),
                 question: c.question,
                 answer: c.answer,
-                topic: c.topic || 'General',
+                topic: c.topic || defaultTopic,
                 tags: c.tags || ['estudio']
               }));
-              break;
             }
+          } else {
+            const errData = await vercelRes.json().catch(() => ({}));
+            geminiErrorReason = errData.error || `Servidor respondió ${vercelRes.status}`;
           }
         } catch (e) {
-          console.error(e);
+          // Si no está en Vercel (servidor local o GitHub Pages estático), intentar Direct API con la clave del usuario
+          const userKey = getActiveApiKey();
+          if (userKey) {
+            try {
+              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${userKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: prompt }] }],
+                  generationConfig: { response_mime_type: "application/json" }
+                })
+              });
+              if (res.ok) {
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                const json = JSON.parse(text);
+                if (json.cards && Array.isArray(json.cards) && json.cards.length > 0) {
+                  cardsResult = json.cards.map(c => ({
+                    id: 'c-' + Math.random().toString(36).substr(2, 9),
+                    question: c.question,
+                    answer: c.answer,
+                    topic: c.topic || defaultTopic,
+                    tags: c.tags || ['estudio']
+                  }));
+                }
+              } else {
+                const errData = await res.json().catch(() => ({}));
+                geminiErrorReason = errData.error?.message || `HTTP ${res.status}`;
+              }
+            } catch (err) {
+              geminiErrorReason = err.message;
+            }
+          } else {
+            geminiErrorReason = "En entorno local/estático se requiere configurar una API Key en el botón superior.";
+          }
         }
       }
 
-      btn.disabled = false;
-      btn.className = "flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer";
-      btnText.textContent = "Generar Flashcards";
-
-      if (!cardsGenerated || cardsGenerated.length === 0) {
-        console.warn("IA no disponible temporalmente. Activando generador heurístico local...");
-        isLocalEngine = true;
-        cardsGenerated = generateLocalFallback(combinedText, count, document.getElementById('input-topic').value || 'General');
+      // FALLBACK LOCAL SI GEMINI FALLA O SI EL USUARIO ELIGIÓ LOCAL DIRECTAMENTE
+      if (!cardsResult || cardsResult.length === 0) {
+        usedLocal = true;
+        btnText.textContent = "Procesando con Motor Local...";
+        cardsResult = generateSmartLocalCards(combinedText, count, defaultTopic, difficulty, style);
+        
+        if (engineChoice === 'gemini') {
+          alertBanner.classList.remove('hidden');
+          const alertDesc = document.getElementById('api-alert-desc');
+          if (geminiErrorReason) {
+            alertDesc.innerHTML = `Info: <b class="text-amber-100">${escapeHtml(geminiErrorReason)}</b>.<br>Tus flashcards fueron creadas al instante por el <b>Motor Local Autónomo</b>.`;
+          }
+        }
       }
 
-      flashcards = cardsGenerated;
+      flashcards = cardsResult;
       cardStatuses = {};
       flashcards.forEach(c => cardStatuses[c.id] = 'pending');
       currentStudyIndex = 0;
@@ -945,21 +1169,21 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
 
       saveToStorage();
       renderDeckGrid();
-      
-      const engineBadge = document.getElementById('engine-badge');
-      const fallbackBanner = document.getElementById('fallback-warning-banner');
 
-      if (isLocalEngine) {
+      // Actualizar Insignia de Motor
+      const engineBadge = document.getElementById('engine-badge');
+      if (usedLocal) {
         engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 flex items-center gap-1";
-        engineBadge.innerHTML = `<i data-lucide="cpu" class="h-3 w-3"></i><span>Motor Local de Respaldo</span>`;
-        engineBadge.classList.remove('hidden');
-        fallbackBanner.classList.remove('hidden');
+        engineBadge.innerHTML = `<i data-lucide="zap" class="h-3 w-3"></i><span>Motor Local Autónomo</span>`;
       } else {
         engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-indigo-500/10 border-indigo-500/30 text-indigo-300 flex items-center gap-1";
-        engineBadge.innerHTML = `<i data-lucide="sparkles" class="h-3 w-3 text-indigo-400"></i><span>Gemini 3.6 Flash IA</span>`;
-        engineBadge.classList.remove('hidden');
-        fallbackBanner.classList.add('hidden');
+        engineBadge.innerHTML = `<i data-lucide="sparkles" class="h-3 w-3 text-indigo-400"></i><span>Gemini Flash IA</span>`;
       }
+      engineBadge.classList.remove('hidden');
+
+      btn.disabled = false;
+      btn.className = "flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer";
+      btnText.textContent = "Generar Flashcards";
 
       document.getElementById('nav-study-count').textContent = flashcards.length;
       document.getElementById('nav-study-count').classList.remove('hidden');
@@ -990,7 +1214,7 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
                   <span class="rounded-md bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-indigo-400">
                     ${escapeHtml(c.topic)}
                   </span>
-                  <button onclick="deleteCard('${c.id}')" class="rounded-md p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors">
+                  <button onclick="deleteCard('${c.id}')" class="rounded-md p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors cursor-pointer">
                     <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                   </button>
                 </div>
@@ -1091,7 +1315,7 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
       const topics = ['Todos', ...new Set(flashcards.map(c => c.topic).filter(Boolean))];
 
       container.innerHTML = topics.map(top => `
-        <button onclick="filterStudyTopic('${escapeHtml(top)}')" class="${selectedTopic === top ? 'rounded-md bg-indigo-600 border border-indigo-500 px-2.5 py-1 text-xs font-medium text-white shadow-xs' : 'rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 transition-colors'}">
+        <button onclick="filterStudyTopic('${escapeHtml(top)}')" class="${selectedTopic === top ? 'rounded-md bg-indigo-600 border border-indigo-500 px-2.5 py-1 text-xs font-medium text-white shadow-xs cursor-pointer' : 'rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 transition-colors cursor-pointer'}">
           ${escapeHtml(top)}
         </button>
       `).join('');
@@ -1108,7 +1332,7 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
         const status = cardStatuses[c.id];
         return `
           <li>
-            <button onclick="selectStudyCardIndex(${idx})" type="button" class="${isCurrent ? 'flex w-full items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-2.5 py-1.5 text-left' : 'flex w-full items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-2.5 py-1.5 hover:border-zinc-700 transition-colors text-left'}">
+            <button onclick="selectStudyCardIndex(${idx})" type="button" class="${isCurrent ? 'flex w-full items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-2.5 py-1.5 text-left cursor-pointer' : 'flex w-full items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-2.5 py-1.5 hover:border-zinc-700 transition-colors text-left cursor-pointer'}">
               <span class="text-[10px] font-semibold text-zinc-500 shrink-0 w-4">${idx + 1}</span>
               <div class="min-w-0 flex-1">
                 <p class="text-xs font-medium text-zinc-200 truncate">${escapeHtml(c.question)}</p>
@@ -1139,8 +1363,8 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
       const btn = document.getElementById('btn-only-pending');
       if (btn) {
         btn.className = onlyPending
-          ? "flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300"
-          : "flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors";
+          ? "flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300 cursor-pointer"
+          : "flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors cursor-pointer";
         btn.innerHTML = `<i data-lucide="${onlyPending ? 'check' : 'plus'}" class="h-3.5 w-3.5 ${onlyPending ? 'text-emerald-400' : 'text-zinc-500'}"></i><span>Solo pendientes</span>`;
       }
       currentStudyIndex = 0;
@@ -1151,6 +1375,7 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
       cardStatuses = {};
       flashcards.forEach(c => cardStatuses[c.id] = 'pending');
       currentStudyIndex = 0;
+      saveToStorage();
       renderStudySession();
     }
 
