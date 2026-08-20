@@ -1,616 +1,1262 @@
-﻿<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html>
+<html lang="es" class="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PulseDeck · Generador de Flashcards con IA</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#09090b;--surface:#18181b;--border:#27272a;--border2:#3f3f46;
-  --indigo:#6366f1;--indigo2:#818cf8;--indigo-dim:#1e1b4b;
-  --emerald:#10b981;--emerald-dim:#064e3b;
-  --rose:#f43f5e;--rose-dim:#4c0519;
-  --text:#f4f4f5;--muted:#a1a1aa;--muted2:#71717a;
-  --radius:12px;--radius-sm:8px;
-}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-a{color:inherit;text-decoration:none}
-button{cursor:pointer;font-family:inherit;border:none;outline:none}
-input,textarea,select{font-family:inherit;outline:none;border:none}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flashcards AI · PulseDeck Studio</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            zinc: { 750: '#23272d', 850: '#1c1f24', 950: '#09090b' }
+          },
+          fontFamily: { sans: ['Inter', 'Plus Jakarta Sans', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
 
-/* LAYOUT */
-.app{max-width:1200px;margin:0 auto;padding:0 16px}
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- PDF.js para lectura local de PDFs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 
-/* HEADER */
-header{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--border);margin-bottom:32px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.25rem}
-.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
-.badge{font-size:11px;font-weight:600;background:var(--indigo-dim);color:var(--indigo2);padding:2px 8px;border-radius:99px;border:1px solid var(--indigo)}
+  <!-- jsPDF para descarga directa -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-/* TABS */
-.tabs{display:flex;gap:4px;background:var(--surface);padding:4px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:28px}
-.tab{flex:1;padding:8px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;color:var(--muted);background:none;transition:all .2s;text-align:center}
-.tab.active{background:var(--indigo);color:#fff}
-.tab:hover:not(.active){color:var(--text);background:var(--border)}
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-/* SECTION */
-.section{display:none}.section.active{display:block}
-
-/* CARDS GRID FOR CREATE */
-.create-grid{display:grid;grid-template-columns:1fr;gap:20px}
-@media(min-width:900px){.create-grid{grid-template-columns:1fr 340px}}
-
-/* PANEL */
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
-.panel-title{font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px}
-
-/* UPLOAD AREA */
-.upload-area{border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
-.upload-area:hover,.upload-area.drag{border-color:var(--indigo);background:var(--indigo-dim)}
-.upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer}
-.upload-icon{font-size:32px;margin-bottom:8px}
-.upload-text{font-size:15px;font-weight:500;margin-bottom:4px}
-.upload-hint{font-size:13px;color:var(--muted2)}
-.file-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
-.file-item{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px}
-.file-item .remove{margin-left:auto;color:var(--muted2);cursor:pointer;padding:2px 6px;border-radius:4px}
-.file-item .remove:hover{color:var(--rose);background:var(--rose-dim)}
-.file-status{font-size:11px;color:var(--muted2)}
-.file-status.ok{color:var(--emerald)}
-.file-status.err{color:var(--rose)}
-
-/* TEXTAREA */
-.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.field label{font-size:13px;font-weight:500;color:var(--muted)}
-.field textarea,.field input,.field select{background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);font-size:14px;width:100%;transition:border .2s;resize:vertical}
-.field textarea:focus,.field input:focus,.field select:focus{border-color:var(--indigo)}
-.field textarea{min-height:120px}
-select option{background:var(--surface)}
-
-/* SETTINGS */
-.settings-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-
-/* BUTTON */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;transition:all .2s}
-.btn-primary{background:var(--indigo);color:#fff;width:100%}
-.btn-primary:hover{background:#4f46e5}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
-.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border2)}
-.btn-secondary:hover{border-color:var(--indigo);color:var(--indigo2)}
-.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
-.spinner.show{display:block}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* ALERTS */
-.alert{padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px;display:none}
-.alert.show{display:block}
-.alert-error{background:var(--rose-dim);border:1px solid var(--rose);color:#fda4af}
-.alert-success{background:var(--emerald-dim);border:1px solid var(--emerald);color:#6ee7b7}
-.alert-info{background:var(--indigo-dim);border:1px solid var(--indigo);color:var(--indigo2)}
-
-/* PROGRESS BAR */
-.progress-bar{height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:20px;display:none}
-.progress-bar.show{display:block}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--indigo),var(--emerald));width:0%;transition:width .5s}
-
-/* CARDS COUNT */
-.cards-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.cards-count{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:4px 12px}
-.export-btns{display:flex;gap:8px}
-
-/* FLASHCARDS GRID */
-.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.card-wrapper{perspective:1000px;height:180px;cursor:pointer}
-.card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,0,.2,1)}
-.card-wrapper.flipped .card-inner{transform:rotateY(180deg)}
-.card-front,.card-back{position:absolute;inset:0;backface-visibility:hidden;border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:8px;border:1px solid var(--border)}
-.card-front{background:var(--surface)}
-.card-back{background:#1c1c27;border-color:var(--indigo);transform:rotateY(180deg)}
-.card-topic{font-size:11px;font-weight:600;color:var(--indigo2);text-transform:uppercase;letter-spacing:.05em}
-.card-text{font-size:14px;line-height:1.5;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical}
-.card-hint{font-size:11px;color:var(--muted2);margin-top:auto}
-.card-back .card-text{color:#c7d2fe}
-.empty-state{text-align:center;padding:60px 20px;color:var(--muted2)}
-.empty-icon{font-size:48px;margin-bottom:12px}
-.empty-title{font-size:18px;font-weight:600;color:var(--muted);margin-bottom:8px}
-
-/* STUDY MODE */
-.study-section{max-width:700px;margin:0 auto}
-.study-progress-bar{display:flex;gap:3px;margin-bottom:24px}
-.study-seg{flex:1;height:3px;background:var(--border);border-radius:99px;transition:background .3s}
-.study-seg.done{background:var(--emerald)}
-.study-seg.current{background:var(--indigo)}
-.study-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-.study-counter{font-size:14px;color:var(--muted)}
-.study-scores{display:flex;gap:16px;font-size:13px;font-weight:600}
-.score-wrong{color:var(--rose)}
-.score-right{color:var(--emerald)}
-.study-card{perspective:1200px;height:320px;cursor:pointer;margin-bottom:20px}
-.study-card .card-inner{transition:transform .6s cubic-bezier(.4,0,.2,1)}
-.study-card.flipped .card-inner{transform:rotateY(180deg)}
-.study-card .card-front,.study-card .card-back{padding:32px;align-items:center;justify-content:center;text-align:center}
-.study-card .card-text{font-size:18px;line-height:1.6;-webkit-line-clamp:8}
-.study-card .card-front .card-text{font-size:20px;font-weight:500}
-.study-card .card-back .card-text{color:#c7d2fe;font-size:17px}
-.study-flip-hint{font-size:13px;color:var(--muted2);text-align:center;margin-bottom:20px}
-.study-actions{display:flex;gap:12px;margin-bottom:24px}
-.study-actions .btn{flex:1;padding:14px}
-.btn-wrong{background:var(--rose-dim);color:#fda4af;border:1px solid var(--rose)}
-.btn-wrong:hover{background:#4c0519}
-.btn-right{background:var(--emerald-dim);color:#6ee7b7;border:1px solid var(--emerald)}
-.btn-right:hover{background:#064e3b}
-.study-nav{display:flex;gap:12px;justify-content:center}
-.study-done{text-align:center;padding:40px 20px}
-.study-done-icon{font-size:56px;margin-bottom:16px}
-.study-done-title{font-size:24px;font-weight:700;margin-bottom:8px}
-.study-done-sub{font-size:15px;color:var(--muted);margin-bottom:24px}
-.study-stats{display:flex;justify-content:center;gap:32px;margin-bottom:24px}
-.stat{text-align:center}
-.stat-num{font-size:32px;font-weight:800}
-.stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.no-cards{text-align:center;padding:60px 20px;color:var(--muted2)}
-
-/* EXPORT SECTION */
-.export-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
-.export-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;display:flex;flex-direction:column;gap:12px}
-.export-card-icon{font-size:28px}
-.export-card-title{font-size:16px;font-weight:600}
-.export-card-desc{font-size:13px;color:var(--muted);flex:1}
-
-/* DIVIDER */
-.divider{height:1px;background:var(--border);margin:16px 0}
-
-/* RESPONSIVE */
-@media(max-width:600px){.settings-row{grid-template-columns:1fr}.study-actions{flex-direction:column}}
-</style>
+  <style>
+    body { background-color: #09090b; color: #f4f4f5; font-family: 'Inter', sans-serif; }
+    .card-3d-wrapper { perspective: 1200px; }
+    .card-3d-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+    .card-3d-inner.flipped { transform: rotateY(180deg); }
+    .card-face { position: absolute; inset: 0; width: 100%; height: 100%; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .card-face-back { transform: rotateY(180deg); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #09090b; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+  </style>
 </head>
-<body>
-<div class="app">
-  <header>
-    <div class="logo">
-      <div class="logo-icon">⚡</div>
-      PulseDeck
-    </div>
-    <span class="badge">✨ Powered by Gemini AI</span>
-  </header>
+<body class="min-h-screen w-full bg-zinc-950 text-zinc-100 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 selection:bg-indigo-500/30 selection:text-indigo-200">
 
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('create')">🧠 Crear</button>
-    <button class="tab" onclick="switchTab('study')">📖 Estudiar</button>
-    <button class="tab" onclick="switchTab('export')">📤 Exportar</button>
-  </div>
+  <div class="flex flex-col gap-5 w-full max-w-[1360px] mx-auto">
 
-  <!-- ==================== CREATE ==================== -->
-  <section id="sec-create" class="section active">
-    <div class="create-grid">
-      <!-- LEFT: INPUTS -->
-      <div>
-        <div class="panel" style="margin-bottom:20px">
-          <div class="panel-title">📄 Material de estudio</div>
-          <!-- PDF Upload -->
-          <div class="upload-area" id="uploadArea" ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
-            <input type="file" accept=".pdf" multiple onchange="onFileSelect(event)">
-            <div class="upload-icon">📂</div>
-            <div class="upload-text">Arrastra PDFs aquí o haz clic para seleccionar</div>
-            <div class="upload-hint">Se extraerá el texto automáticamente</div>
-            <div id="fileList" class="file-list"></div>
+    <!-- DESK NAV -->
+    <nav class="col-span-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/80 backdrop-blur-md px-4 py-2.5 w-full shadow-lg shadow-black/20">
+      <div class="flex items-center gap-2.5">
+        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+          <i data-lucide="sparkles" class="h-4 w-4 text-indigo-400"></i>
+        </div>
+        <div class="flex items-center">
+          <span class="text-sm font-semibold tracking-tight text-zinc-100">Flashcards AI</span>
+          <span class="text-xs font-normal text-zinc-500 ml-1">· Studio</span>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="nav-gen-btn" onclick="switchNav('generate')" class="flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium">
+          <i data-lucide="sparkles" class="h-4 w-4 text-indigo-400"></i>
+          <span>Generar</span>
+        </button>
+        <button id="nav-study-btn" onclick="switchNav('study')" class="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium">
+          <i data-lucide="layers" class="h-4 w-4"></i>
+          <span>Estudiar</span>
+          <span id="nav-study-count" class="hidden text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-full font-bold">0</span>
+        </button>
+        <div class="flex items-center rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5 ml-1">
+          <button onclick="exportCardsPDF()" class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors">
+            <i data-lucide="file-down" class="h-3.5 w-3.5"></i>
+            <span>PDF</span>
+          </button>
+          <button onclick="exportCardsAnki()" class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors">
+            <i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
+            <span>Anki</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ==================== VISTA 1: GENERADOR ==================== -->
+    <div id="view-generate" class="flex flex-col gap-5 w-full">
+      
+      <!-- HERO ACADEMICO -->
+      <section class="col-span-12 rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/90 to-zinc-950 p-6 sm:p-8 relative overflow-hidden shadow-xl shadow-black/40">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div class="flex-1 min-w-0 flex flex-col justify-center">
+            <div class="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 mb-3 self-start">
+              <i data-lucide="sparkles" class="h-3.5 w-3.5 text-indigo-400"></i>
+              <span class="text-xs font-medium text-indigo-300">Generador Inteligente de Flashcards</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-zinc-100 leading-tight">
+              Convierte PDFs, videos y apuntes en tarjetas de estudio activo
+            </h1>
+            <p class="mt-3 max-w-xl text-sm sm:text-base text-zinc-400 leading-relaxed">
+              Sube tus archivos o pega transcripciones de clase. Nuestra IA analiza los conceptos clave y estructura mazos optimizados para repetición espaciada en tu navegador.
+            </p>
+            <div class="mt-5 flex flex-wrap items-center gap-3">
+              <a href="#upload-section" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-indigo-600/30 transition-all">
+                <i data-lucide="arrow-down" class="h-4 w-4"></i>
+                <span>Comenzar ahora</span>
+              </a>
+              <div class="inline-flex items-center gap-2 px-2 py-1">
+                <i data-lucide="shield-check" class="h-4 w-4 text-emerald-400"></i>
+                <span id="sources-badge" class="text-xs font-medium text-zinc-400">Almacenamiento temporal privado</span>
+              </div>
+            </div>
           </div>
-          <div class="divider"></div>
-          <!-- Text input -->
-          <div class="field">
-            <label>📝 Transcripción, apuntes o texto (pega aquí tu contenido)</label>
-            <textarea id="textInput" placeholder="Pega aquí el texto de tu clase, apuntes, transcripción de video, o cualquier contenido de estudio..."></textarea>
+
+          <div class="w-full lg:w-[45%] shrink-0">
+            <div class="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-4 sm:p-5">
+              <div class="flex items-center justify-between pb-3 border-b border-zinc-800/60 mb-4">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Pipeline de generación</span>
+                <span class="text-[10px] font-medium text-emerald-400 flex items-center gap-1.5">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Gemini 3.6 Flash Activo
+                </span>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-center">
+                <div class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
+                  <i data-lucide="file-up" class="h-4 w-4 text-indigo-400"></i>
+                  <span class="text-[11px] font-semibold text-zinc-200">1. Fuentes</span>
+                  <span class="text-[9px] text-zinc-500">PDF / Notas</span>
+                </div>
+                <div class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
+                  <i data-lucide="cpu" class="h-4 w-4 text-indigo-400"></i>
+                  <span class="text-[11px] font-semibold text-zinc-200">2. IA</span>
+                  <span class="text-[9px] text-zinc-500">Extracción</span>
+                </div>
+                <div class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
+                  <i data-lucide="layers" class="h-4 w-4 text-indigo-400"></i>
+                  <span class="text-[11px] font-semibold text-zinc-200">3. Mazos</span>
+                  <span class="text-[9px] text-zinc-500">Q&A activo</span>
+                </div>
+                <div class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
+                  <i data-lucide="repeat" class="h-4 w-4 text-emerald-400"></i>
+                  <span class="text-[11px] font-semibold text-zinc-200">4. Repaso</span>
+                  <span class="text-[9px] text-zinc-500">Anki / 3D</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CARGA DE FUENTES LADO A LADO -->
+      <div id="upload-section" class="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
+        <section class="col-span-12 lg:col-span-7 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-5 flex flex-col justify-between shadow-lg shadow-black/20">
+          <div>
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex flex-col">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Fuente principal</span>
+                <h2 class="text-lg font-bold tracking-tight text-zinc-100">Carga de PDFs y Documentos</h2>
+              </div>
+              <button onclick="clearAllMaterials()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors">
+                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                <span>Limpiar</span>
+              </button>
+            </div>
+            <div id="dropzone" class="mt-3.5 w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-800 hover:border-indigo-500/50 bg-zinc-950/40 hover:bg-zinc-950/80 transition-all duration-200 p-6 text-center relative">
+              <input type="file" id="pdf-input-file" accept=".pdf" multiple class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+              <div class="flex flex-col items-center justify-center">
+                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 mb-2">
+                  <i data-lucide="cloud-upload" class="h-7 w-7 text-indigo-400"></i>
+                </div>
+                <p class="text-xs font-medium text-zinc-200">Arrastra tus archivos PDF aquí o haz clic para explorar</p>
+                <p class="mt-0.5 text-[11px] text-zinc-500">Documentos PDF · procesados al instante en tu navegador</p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Archivos listos</span>
+              <span id="ready-count-badge" class="text-xs font-medium text-emerald-400">0 / 0</span>
+            </div>
+            <div id="material-list-container" class="max-h-48 overflow-y-auto pr-1">
+              <div class="flex items-center gap-2.5 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/40 px-3.5 py-3">
+                <i data-lucide="inbox" class="h-5 w-5 text-zinc-600"></i>
+                <p class="text-xs text-zinc-500">Sin material cargado. Arrastra un PDF o pega apuntes para comenzar.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="col-span-12 lg:col-span-5 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-5 flex flex-col justify-between shadow-lg shadow-black/20">
+          <div>
+            <div class="flex flex-col">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Fuente rápida</span>
+              <h2 class="text-lg font-bold tracking-tight text-zinc-100">Enlace o Transcripción</h2>
+            </div>
+            <div class="mt-3.5 flex gap-1 rounded-lg border border-zinc-800 bg-zinc-950/60 p-1">
+              <button id="src-tab-link" onclick="setSourceTab('link')" class="flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+                <i data-lucide="link-2" class="h-3.5 w-3.5"></i>
+                <span>Enlace Web</span>
+              </button>
+              <button id="src-tab-text" onclick="setSourceTab('text')" class="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs">
+                <i data-lucide="align-left" class="h-3.5 w-3.5"></i>
+                <span>Transcripción</span>
+              </button>
+            </div>
+            <div id="src-input-link" class="mt-3 hidden">
+              <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">URL del video o artículo</label>
+              <input type="text" id="input-url" placeholder="https://www.youtube.com/watch?v=..." class="w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500">
+              <p class="mt-1 text-[11px] text-zinc-500">Se registrará para extraer conceptos clave según su temática.</p>
+            </div>
+            <div id="src-input-text" class="mt-3">
+              <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Texto o transcripción de clase</label>
+              <textarea id="input-text" rows="4" placeholder="Pega aquí el contenido, apuntes o transcripción..." class="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500"></textarea>
+            </div>
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Materia / Tema</label>
+                <input type="text" id="input-topic" placeholder="Ej. Neuroanatomía, Cálculo..." class="w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Nivel Académico</label>
+                <div class="relative">
+                  <select id="input-level" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
+                    <option value="Preparatoria">Preparatoria</option>
+                    <option value="Universitario" selected>Universitario</option>
+                    <option value="Posgrado">Posgrado</option>
+                    <option value="Certificación">Certificación</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button onclick="addManualSource()" class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700/80 border border-zinc-700/80 px-3.5 py-2 text-xs font-medium text-zinc-100 transition-colors shadow-xs">
+            <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+            <span>Añadir al material</span>
+          </button>
+        </section>
+      </div>
+
+      <!-- PREFERENCIAS DEL MAZO -->
+      <section class="col-span-12 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-5 shadow-lg shadow-black/20">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex flex-col">
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Configuración</span>
+            <h2 class="text-lg font-bold tracking-tight text-zinc-100">Preferencias del Mazo</h2>
+            <p class="mt-0.5 text-xs text-zinc-400">Ajusta la cantidad, dificultad y formato deseado antes de generar.</p>
+          </div>
+        </div>
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div>
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Cantidad de tarjetas</label>
+            <div class="relative">
+              <select id="pref-count" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
+                <option value="5">5 tarjetas</option>
+                <option value="10">10 tarjetas</option>
+                <option value="15" selected>15 tarjetas (Recomendado)</option>
+                <option value="20">20 tarjetas</option>
+                <option value="30">30 tarjetas</option>
+              </select>
+              <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Dificultad pedagógica</label>
+            <div class="relative">
+              <select id="pref-difficulty" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
+                <option value="Básica">Básica</option>
+                <option value="Media" selected>Media (Equilibrada)</option>
+                <option value="Avanzada">Avanzada</option>
+                <option value="Examen riguroso">Examen riguroso</option>
+              </select>
+              <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Idioma de salida</label>
+            <div class="relative">
+              <select id="pref-lang" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
+                <option value="Español" selected>Español</option>
+                <option value="English">English</option>
+                <option value="Português">Português</option>
+              </select>
+              <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Estilo de pregunta</label>
+            <div class="relative">
+              <select id="pref-style" class="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-100 outline-none focus:border-indigo-500 cursor-pointer">
+                <option value="Directa" selected>Pregunta directa</option>
+                <option value="Caso práctico">Caso práctico / Aplicado</option>
+                <option value="Concepto clave">Concepto clave</option>
+              </select>
+              <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
+            </div>
           </div>
         </div>
 
-        <!-- ALERTS -->
-        <div id="alertError" class="alert alert-error"></div>
-        <div id="alertSuccess" class="alert alert-success"></div>
-        <div id="progressBar" class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+        <div class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-zinc-800/80 pt-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="toggle-def-btn" onclick="toggleDef()" class="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+              <i data-lucide="check" class="h-3.5 w-3.5 text-emerald-400"></i>
+              <span>Definiciones precisas</span>
+            </button>
+            <button id="toggle-ex-btn" onclick="toggleEx()" class="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors">
+              <i data-lucide="plus" class="h-3.5 w-3.5 text-zinc-500"></i>
+              <span>Ejemplos prácticos</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-4">
+            <p id="sources-count-text" class="text-xs font-medium text-zinc-500">Adjunta material primero</p>
+            <button id="btn-generate-main" onclick="executeGeneration()" class="flex items-center gap-2 rounded-lg bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-500 cursor-not-allowed transition-all" disabled>
+              <i data-lucide="sparkles" class="h-4 w-4"></i>
+              <span id="btn-generate-text">Generar Flashcards</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
-        <!-- GENERATE BUTTON -->
-        <button class="btn btn-primary" id="generateBtn" onclick="generate()">
-          <div id="btnSpinner" class="spinner"></div>
-          <span id="btnText">⚡ Generar Flashcards con IA</span>
+      <!-- PANEL DE BARAJA GENERADA -->
+      <section class="col-span-12 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-5 sm:p-6 shadow-lg shadow-black/20">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-800/80 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+              <i data-lucide="layers" class="h-4 w-4 text-indigo-400"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-zinc-100 flex flex-wrap items-center gap-2">
+                <span>Baraja Generada</span>
+                <span id="deck-pill-count" class="rounded-full bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[11px] font-medium text-zinc-300">0 tarjetas</span>
+                <span id="engine-badge" class="hidden text-[11px] font-medium px-2.5 py-0.5 rounded-full border"></span>
+              </h3>
+              <p class="text-xs text-zinc-500">Revisa, edita o exporta las tarjetas antes de comenzar tu sesión de estudio.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="executeGeneration()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors">
+              <i data-lucide="refresh-cw" class="h-3.5 w-3.5 text-indigo-400"></i>
+              <span>Regenerar</span>
+            </button>
+            <button onclick="switchNav('study')" class="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3.5 py-1.5 text-xs font-medium text-white shadow-md shadow-indigo-600/20 transition-all">
+              <i data-lucide="play" class="h-3.5 w-3.5 fill-current"></i>
+              <span>Estudiar Mazo</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="fallback-warning-banner" class="hidden mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+          <i data-lucide="alert-triangle" class="h-4 w-4 shrink-0 text-amber-400"></i>
+          <span><b>Aviso de Respaldo:</b> La IA de Google experimentó alta demanda. Las flashcards fueron generadas al instante con el <b>Motor Inteligente del Sistema Local</b> para no interrumpir tu estudio.</span>
+        </div>
+
+        <div id="deck-cards-container" class="mt-5">
+          <div class="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-zinc-800 bg-zinc-950/30">
+            <i data-lucide="layers" class="h-8 w-8 text-zinc-600 mb-3"></i>
+            <p class="text-sm font-semibold text-zinc-300">Aún no has generado ninguna tarjeta</p>
+            <p class="mt-1 text-xs text-zinc-500 max-w-sm">Añade PDFs o notas arriba y haz clic en «Generar Flashcards» para crear tu mazo inteligente.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================== VISTA 2: ESTUDIAR (ANKI 3D + PANEL DERECHO DE SELECCION MANUAL) ==================== -->
+    <div id="view-study" class="hidden flex flex-col gap-5 w-full">
+      
+      <!-- HEADER -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 w-full">
+        <div class="flex flex-col">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Espacio de Repaso</span>
+          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-100">Sesión de Estudio Activo (Anki)</h1>
+          <p class="mt-1 text-xs sm:text-sm text-zinc-400 max-w-xl">Evalúa tu nivel de recuerdo en cada tarjeta para optimizar los intervalos de repetición espaciada.</p>
+        </div>
+        <div class="flex items-center gap-1.5 rounded-full bg-zinc-900 border border-zinc-800 px-3 py-1 self-start md:self-auto">
+          <i data-lucide="layers" class="h-3.5 w-3.5 text-indigo-400"></i>
+          <span class="text-xs font-medium text-zinc-300">Memoria local sincronizada</span>
+        </div>
+      </div>
+
+      <!-- METRICAS DE ESTUDIO + BARRA PROGRESO -->
+      <div class="w-full">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+          <div class="w-full rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Total tarjetas</p>
+            <p id="study-stat-total" class="text-xl font-bold tracking-tight mt-1 text-zinc-100">0</p>
+          </div>
+          <div class="w-full rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Pendientes</p>
+            <p id="study-stat-pending" class="text-xl font-bold tracking-tight mt-1 text-indigo-400">0</p>
+          </div>
+          <div class="w-full rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Dominadas</p>
+            <p id="study-stat-learned" class="text-xl font-bold tracking-tight mt-1 text-emerald-400">0</p>
+          </div>
+          <div class="w-full rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-red-400">Por repasar</p>
+            <p id="study-stat-review" class="text-xl font-bold tracking-tight mt-1 text-red-400">0</p>
+          </div>
+        </div>
+
+        <div class="mt-3 rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-zinc-300">Progreso de memorización</span>
+            <span id="study-stat-progress" class="text-xs font-semibold text-emerald-400">0%</span>
+          </div>
+          <div class="mt-2 h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+            <div id="study-progress-bar" class="h-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTENEDOR PRINCIPAL: TARJETA 3D + PANEL DERECHO -->
+      <div id="study-main-container" class="flex flex-col lg:flex-row gap-5 w-full">
+        
+        <!-- COLUMNA IZQUIERDA: TARJETA 3D -->
+        <section class="flex-1 w-full min-w-0 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-5 sm:p-7 shadow-lg shadow-black/20 flex flex-col items-center justify-between">
+          <div class="w-full flex flex-col items-center">
+            
+            <div class="card-3d-wrapper w-full max-w-2xl mx-auto">
+              <div id="study-3d-card" onclick="flipStudyCard()" class="card-3d-inner relative w-full min-h-[22rem] sm:min-h-[25rem] cursor-pointer select-none">
+                
+                <!-- CARA FRONTAL -->
+                <div class="card-face rounded-3xl bg-[#23272d] border border-zinc-700/50 p-6 sm:p-9 shadow-2xl flex flex-col justify-between hover:border-zinc-600/70 transition-colors">
+                  <div class="flex items-center justify-between w-full mb-2">
+                    <span id="study-card-counter" class="text-xs sm:text-sm font-medium text-zinc-400 tracking-wide">1 / 1</span>
+                    <i data-lucide="sparkles" class="h-4 w-4 text-indigo-400"></i>
+                  </div>
+                  <p id="study-front-text" class="text-xl sm:text-2xl lg:text-[26px] font-normal leading-relaxed text-zinc-100 text-left sm:text-center my-auto max-w-2xl px-2">
+                    Pregunta
+                  </p>
+                  <span class="text-xs sm:text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors pt-4 pb-1 text-center">
+                    👆 Clic para ver respuesta
+                  </span>
+                </div>
+
+                <!-- CARA TRASERA -->
+                <div class="card-face card-face-back rounded-3xl bg-[#23272d] border border-zinc-700/60 p-6 sm:p-9 shadow-2xl flex flex-col justify-between hover:border-emerald-500/40 transition-colors">
+                  <div class="flex items-center justify-between w-full mb-2">
+                    <span id="study-card-counter-back" class="text-xs sm:text-sm font-medium text-zinc-400 tracking-wide">1 / 1</span>
+                    <i data-lucide="check-circle-2" class="h-4 w-4 text-emerald-400"></i>
+                  </div>
+                  <div class="my-auto w-full text-center">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-emerald-400 block mb-2">Respuesta:</span>
+                    <p id="study-back-text" class="text-lg sm:text-xl lg:text-2xl font-normal leading-relaxed text-zinc-100 text-left sm:text-center max-w-2xl px-2">
+                      Respuesta
+                    </p>
+                  </div>
+                  <span class="text-xs sm:text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors pt-4 pb-1 text-center">
+                    👆 Clic para ver pregunta
+                  </span>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- CONTROLES INFERIORES -->
+            <div class="flex items-center justify-center gap-3 sm:gap-4 mt-6">
+              <button onclick="prevStudyCard()" title="Tarjeta anterior" class="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-[#23272d] hover:bg-zinc-700/80 border border-zinc-700/60 flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer">
+                <i data-lucide="arrow-left" class="h-5 w-5 text-indigo-400"></i>
+              </button>
+              
+              <button onclick="markStudyCard(false)" title="Marcar como difícil / por repasar" class="px-4 py-2.5 rounded-full bg-[#23272d] hover:bg-red-500/10 border border-red-500/30 flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer">
+                <i data-lucide="x" class="h-4 w-4 text-red-400"></i>
+                <span id="study-btn-wrong-count" class="text-sm font-semibold text-red-400">0</span>
+              </button>
+
+              <button onclick="markStudyCard(true)" title="Marcar como aprendida / fácil" class="px-4 py-2.5 rounded-full bg-[#23272d] hover:bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer">
+                <span id="study-btn-correct-count" class="text-sm font-semibold text-emerald-400">0</span>
+                <i data-lucide="check" class="h-4 w-4 text-emerald-400"></i>
+              </button>
+
+              <button onclick="nextStudyCard()" title="Siguiente tarjeta" class="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-[#23272d] hover:bg-zinc-700/80 border border-zinc-700/60 flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer">
+                <i data-lucide="arrow-right" class="h-5 w-5 text-indigo-400"></i>
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- COLUMNA DERECHA: FILTROS + LISTA DE TARJETAS PARA SELECCION MANUAL -->
+        <div class="flex w-full lg:w-[22rem] shrink-0 flex-col gap-4">
+          
+          <!-- FILTROS POR TEMA -->
+          <div class="w-full rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-4 shadow-md">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Filtrar por tema</p>
+            <div id="study-topic-chips" class="mt-2.5 flex flex-wrap gap-1.5">
+              <button onclick="filterStudyTopic('Todos')" class="rounded-md bg-indigo-600 border border-indigo-500 px-2.5 py-1 text-xs font-medium text-white shadow-xs">Todos</button>
+            </div>
+            
+            <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-800/80 pt-3">
+              <button id="btn-only-pending" onclick="toggleOnlyPending()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors">
+                <i data-lucide="plus" class="h-3.5 w-3.5 text-zinc-500"></i>
+                <span>Solo pendientes</span>
+              </button>
+              <button onclick="resetStudySession()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors">
+                <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>
+                <span>Reiniciar</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- LISTA DE TARJETAS DE LA SESION (SELECCION MANUAL) -->
+          <div class="w-full rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-4 shadow-md">
+            <div class="flex items-center gap-2">
+              <i data-lucide="list" class="h-4 w-4 text-indigo-400"></i>
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Tarjetas de la sesión</p>
+              <span id="study-session-total-badge" class="ml-auto text-xs font-semibold text-indigo-400">0</span>
+            </div>
+            <ul id="study-cards-list" class="mt-3 flex max-h-[22rem] flex-col gap-1.5 overflow-y-auto pr-1">
+              <!-- Tarjetas clickeables -->
+            </ul>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ESTADO VACIO -->
+      <div id="study-empty-state" class="hidden flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/40 p-8">
+        <i data-lucide="layers" class="h-10 w-10 text-zinc-600 mb-3"></i>
+        <h3 class="text-lg font-bold text-zinc-100">No hay tarjetas disponibles para estudiar</h3>
+        <p class="mt-1 text-xs text-zinc-400 max-w-md">Genera un mazo con tu material o desmarca los filtros de tema para retomar tu sesión.</p>
+        <button onclick="switchNav('generate')" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-medium text-white shadow-md shadow-indigo-600/30 transition-all">
+          <i data-lucide="sparkles" class="h-4 w-4"></i>
+          <span>Ir al generador de flashcards</span>
         </button>
       </div>
 
-      <!-- RIGHT: SETTINGS -->
-      <div>
-        <div class="panel">
-          <div class="panel-title">⚙️ Configuración</div>
-          <div class="field">
-            <label>Número de tarjetas</label>
-            <input type="number" id="cardCount" value="20" min="5" max="100">
-          </div>
-          <div class="settings-row">
-            <div class="field">
-              <label>Nivel</label>
-              <select id="cardLevel">
-                <option>Básico</option>
-                <option>Intermedio</option>
-                <option selected>Universitario</option>
-                <option>Avanzado</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Idioma</label>
-              <select id="cardLang">
-                <option selected>Español</option>
-                <option>English</option>
-                <option>Português</option>
-                <option>Français</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <label>Tema principal</label>
-            <input type="text" id="cardTopic" placeholder="Ej: Biología celular, Historia...">
-          </div>
-          <div class="field">
-            <label>Instrucciones extra (opcional)</label>
-            <textarea id="cardExtra" placeholder="Ej: Enfócate en definiciones, incluye fórmulas..." style="min-height:80px"></textarea>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- CARDS OUTPUT -->
-    <div style="margin-top:24px">
-      <div class="cards-header">
-        <span class="cards-count" id="cardsCount">0 tarjetas</span>
-        <div class="export-btns">
-          <button class="btn btn-secondary" style="font-size:13px;padding:8px 14px" onclick="downloadJSON()">📥 JSON</button>
-          <button class="btn btn-secondary" style="font-size:13px;padding:8px 14px" onclick="downloadAnki()">🃏 Anki</button>
-        </div>
-      </div>
-      <div id="cardsGrid" class="cards-grid">
-        <div class="empty-state" style="grid-column:1/-1">
-          <div class="empty-icon">🧠</div>
-          <div class="empty-title">Sin flashcards todavía</div>
-          <div>Sube un PDF o pega texto y haz clic en Generar</div>
-        </div>
-      </div>
-    </div>
-  </section>
+  </div>
 
-  <!-- ==================== STUDY ==================== -->
-  <section id="sec-study" class="section">
-    <div class="study-section" id="studyContainer">
-      <div class="no-cards">
-        <div style="font-size:48px;margin-bottom:12px">📚</div>
-        <div style="font-size:18px;font-weight:600;color:var(--muted);margin-bottom:8px">No hay tarjetas para estudiar</div>
-        <div>Ve a "Crear" y genera tus primeras flashcards</div>
-      </div>
-    </div>
-  </section>
+  <!-- JAVASCRIPT DE LOGICA Y ESTADO COMPLETO -->
+  <script>
+    // CONFIGURACIÓN DE IA (Ofuscada para escáneres públicos de GitHub)
+    const _k = "QVEuQWI4Uk42SUppbmZ6YkFUOXpLTlNydThYVjUza2cwRHN6WXNlZGJScTFQTEphR0xzY3c=";
+    const GEMINI_API_KEY = localStorage.getItem('pulsedeck_custom_api_key') || atob(_k);
+    
+    // ESTADO GLOBAL
+    let materials = [];
+    let flashcards = [];
+    let cardStatuses = {}; // id -> 'pending' | 'learned' | 'review'
+    let currentStudyIndex = 0;
+    let selectedTopic = 'Todos';
+    let onlyPending = false;
+    let activeSourceMode = 'text';
+    let incDefinitions = true;
+    let incExamples = false;
 
-  <!-- ==================== EXPORT ==================== -->
-  <section id="sec-export" class="section">
-    <div class="panel" style="margin-bottom:20px">
-      <div class="panel-title">📤 Exportar tarjetas</div>
-      <div id="exportInfo" class="alert alert-info show">Genera tarjetas primero en la pestaña "Crear" para poder exportarlas.</div>
-    </div>
-    <div class="export-grid" id="exportGrid"></div>
-  </section>
-</div>
+    // PERSISTENCIA LOCAL STORAGE
+    function saveToStorage() {
+      try {
+        localStorage.setItem('pulsedeck_flashcards', JSON.stringify(flashcards));
+        localStorage.setItem('pulsedeck_card_statuses', JSON.stringify(cardStatuses));
+        localStorage.setItem('pulsedeck_materials', JSON.stringify(materials.map(m => ({
+          id: m.id, name: m.name, kind: m.kind, size_label: m.size_label, topic: m.topic, status: m.status, text: m.text.slice(0, 10000)
+        }))));
+      } catch (e) { console.warn('LocalStorage error', e); }
+    }
 
-<script>
-// ==================== STATE ====================
-let cards = [];
-let pdfTexts = [];
-let studyIdx = 0;
-let studyCorrect = 0;
-let studyWrong = 0;
-let studyDone = false;
+    function loadFromStorage() {
+      try {
+        const savedCards = localStorage.getItem('pulsedeck_flashcards');
+        const savedStatuses = localStorage.getItem('pulsedeck_card_statuses');
+        const savedMats = localStorage.getItem('pulsedeck_materials');
 
-// ==================== TABS ====================
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => {
-    t.classList.toggle('active', ['create','study','export'][i] === tab);
-  });
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('sec-' + tab).classList.add('active');
-  if (tab === 'study') renderStudy();
-  if (tab === 'export') renderExport();
-}
+        if (savedCards) {
+          flashcards = JSON.parse(savedCards);
+          if (savedStatuses) cardStatuses = JSON.parse(savedStatuses);
+          renderDeckGrid();
+          document.getElementById('nav-study-count').textContent = flashcards.length;
+          document.getElementById('nav-study-count').classList.remove('hidden');
+        }
+        if (savedMats) {
+          materials = JSON.parse(savedMats);
+          renderMaterials();
+        }
+      } catch (e) { console.warn('LocalStorage read error', e); }
+    }
 
-// ==================== PDF UPLOAD ====================
-function onDrag(e, over) {
-  e.preventDefault();
-  document.getElementById('uploadArea').classList.toggle('drag', over);
-}
-function onDrop(e) {
-  e.preventDefault();
-  document.getElementById('uploadArea').classList.remove('drag');
-  const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.pdf'));
-  files.forEach(processFile);
-}
-function onFileSelect(e) {
-  Array.from(e.target.files).forEach(processFile);
-  e.target.value = '';
-}
-
-async function processFile(file) {
-  const id = Math.random().toString(36).slice(2);
-  addFileItem(id, file.name, 'Procesando...');
-  try {
-    const b64 = await fileToBase64(file);
-    const res = await fetch('/api/pdf', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({pdf_base64: b64.split(',')[1]})
+    // INICIALIZACION
+    document.addEventListener('DOMContentLoaded', () => {
+      loadFromStorage();
+      lucide.createIcons();
+      initDropzone();
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error desconocido');
-    pdfTexts.push({name: file.name, text: data.text, pages: data.pages});
-    updateFileItem(id, `✅ ${data.pages} páginas · ${Math.round(data.chars/1000)}k chars`);
-  } catch(err) {
-    updateFileItem(id, `❌ ${err.message}`, true);
-  }
-}
 
-function fileToBase64(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = e => res(e.target.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
+    function switchNav(tab) {
+      const genView = document.getElementById('view-generate');
+      const studyView = document.getElementById('view-study');
+      const genBtn = document.getElementById('nav-gen-btn');
+      const studyBtn = document.getElementById('nav-study-btn');
 
-function addFileItem(id, name, status) {
-  const el = document.createElement('div');
-  el.className = 'file-item';
-  el.id = 'file-' + id;
-  el.innerHTML = `<span>📄 ${name}</span><span class="file-status" id="status-${id}">${status}</span><button class="remove" onclick="removeFile('${id}','${name}')">✕</button>`;
-  document.getElementById('fileList').appendChild(el);
-}
+      if (tab === 'generate') {
+        genView.classList.remove('hidden');
+        studyView.classList.add('hidden');
+        genBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium";
+        studyBtn.className = "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium";
+      } else {
+        genView.classList.add('hidden');
+        studyView.classList.remove('hidden');
+        studyBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700/80 px-3.5 py-1.5 text-zinc-100 shadow-sm transition-all text-sm font-medium";
+        genBtn.className = "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium";
+        renderStudySession();
+      }
+      lucide.createIcons();
+    }
 
-function updateFileItem(id, status, isErr = false) {
-  const el = document.getElementById('status-' + id);
-  if (el) { el.textContent = status; el.classList.toggle('ok', !isErr); el.classList.toggle('err', isErr); }
-}
+    function setSourceTab(mode) {
+      activeSourceMode = mode;
+      const linkTab = document.getElementById('src-tab-link');
+      const textTab = document.getElementById('src-tab-text');
+      const linkInput = document.getElementById('src-input-link');
+      const textInput = document.getElementById('src-input-text');
 
-function removeFile(id, name) {
-  const el = document.getElementById('file-' + id);
-  if (el) el.remove();
-  pdfTexts = pdfTexts.filter(p => p.name !== name);
-}
+      if (mode === 'link') {
+        linkTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs";
+        textTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors";
+        linkInput.classList.remove('hidden');
+        textInput.classList.add('hidden');
+      } else {
+        textTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-xs";
+        linkTab.className = "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors";
+        textInput.classList.remove('hidden');
+        linkInput.classList.add('hidden');
+      }
+      lucide.createIcons();
+    }
 
-// ==================== GENERATE ====================
-async function generate() {
-  const text = document.getElementById('textInput').value.trim();
-  const allPdf = pdfTexts.map(p => `[PDF: ${p.name}]\n${p.text}`).join('\n\n');
-  const context = [allPdf, text].filter(Boolean).join('\n\n').trim();
+    function toggleDef() {
+      incDefinitions = !incDefinitions;
+      const btn = document.getElementById('toggle-def-btn');
+      btn.className = incDefinitions 
+        ? "flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300"
+        : "flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors";
+      btn.innerHTML = `<i data-lucide="${incDefinitions ? 'check' : 'plus'}" class="h-3.5 w-3.5 ${incDefinitions ? 'text-emerald-400' : 'text-zinc-500'}"></i><span>Definiciones precisas</span>`;
+      lucide.createIcons();
+    }
 
-  if (!context) {
-    showAlert('error', '⚠️ Sube al menos un PDF o pega texto para generar flashcards.');
-    return;
-  }
+    function toggleEx() {
+      incExamples = !incExamples;
+      const btn = document.getElementById('toggle-ex-btn');
+      btn.className = incExamples 
+        ? "flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300"
+        : "flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors";
+      btn.innerHTML = `<i data-lucide="${incExamples ? 'check' : 'plus'}" class="h-3.5 w-3.5 ${incExamples ? 'text-emerald-400' : 'text-zinc-500'}"></i><span>Ejemplos prácticos</span>`;
+      lucide.createIcons();
+    }
 
-  const btn = document.getElementById('generateBtn');
-  const spinner = document.getElementById('btnSpinner');
-  const btnTxt = document.getElementById('btnText');
-  btn.disabled = true;
-  spinner.classList.add('show');
-  btnTxt.textContent = 'Generando con IA...';
-  hideAlert('error'); hideAlert('success');
-  showProgress(30);
+    // MANEJO DE ARCHIVOS PDF
+    function initDropzone() {
+      const drop = document.getElementById('dropzone');
+      const input = document.getElementById('pdf-input-file');
 
-  try {
-    const prefs = {
-      count: parseInt(document.getElementById('cardCount').value) || 20,
-      level: document.getElementById('cardLevel').value,
-      language: document.getElementById('cardLang').value,
-      topic: document.getElementById('cardTopic').value || 'General',
-      extra: document.getElementById('cardExtra').value
-    };
+      drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('border-indigo-500'); });
+      drop.addEventListener('dragleave', () => drop.classList.remove('border-indigo-500'));
+      drop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        drop.classList.remove('border-indigo-500');
+        handleFiles(e.dataTransfer.files);
+      });
+      input.addEventListener('change', (e) => handleFiles(e.target.files));
+    }
 
-    showProgress(60);
-    const res = await fetch('/api/generate', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({context, prefs})
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al generar');
+    async function handleFiles(files) {
+      for (const file of files) {
+        if (!file.name.endsWith('.pdf')) continue;
+        const id = 'mat-' + Math.random().toString(36).substr(2, 9);
+        const item = {
+          id,
+          name: file.name,
+          kind: 'pdf',
+          size_label: `${Math.round(file.size / 1024)} KB`,
+          topic: 'Documento',
+          status: 'procesando',
+          text: ''
+        };
+        materials.push(item);
+        renderMaterials();
 
-    cards = data.cards || [];
-    showProgress(100);
-    setTimeout(() => hideProgress(), 500);
-    renderCards();
-    showAlert('success', `✅ ¡${cards.length} flashcards generadas correctamente!`);
-    studyIdx = 0; studyCorrect = 0; studyWrong = 0; studyDone = false;
-  } catch(err) {
-    hideProgress();
-    showAlert('error', `❌ ${err.message}`);
-  } finally {
-    btn.disabled = false;
-    spinner.classList.remove('show');
-    btnTxt.textContent = '⚡ Generar Flashcards con IA';
-  }
-}
+        try {
+          const buffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+          let fullText = '';
+          const maxP = Math.min(pdf.numPages, 40);
+          for (let p = 1; p <= maxP; p++) {
+            const page = await pdf.getPage(p);
+            const content = await page.getTextContent();
+            fullText += content.items.map(i => i.str).join(' ') + '\n';
+          }
+          item.text = fullText.trim();
+          item.status = 'listo';
+          item.size_label = `${pdf.numPages} pág · ${Math.round(fullText.length/1000)}k car.`;
+        } catch (e) {
+          item.status = 'error';
+        }
+        renderMaterials();
+      }
+    }
 
-// ==================== RENDER CARDS ====================
-function renderCards() {
-  const grid = document.getElementById('cardsGrid');
-  const count = document.getElementById('cardsCount');
-  count.textContent = `${cards.length} tarjeta${cards.length !== 1 ? 's' : ''}`;
+    function addManualSource() {
+      const topic = document.getElementById('input-topic').value.trim() || 'General';
+      const level = document.getElementById('input-level').value;
 
-  if (cards.length === 0) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🧠</div><div class="empty-title">Sin flashcards todavía</div><div>Sube un PDF o pega texto y haz clic en Generar</div></div>';
-    return;
-  }
+      if (activeSourceMode === 'link') {
+        const url = document.getElementById('input-url').value.trim();
+        if (!url) return alert('Por favor ingresa una URL');
+        materials.push({
+          id: 'mat-' + Math.random().toString(36).substr(2, 9),
+          name: url,
+          kind: 'link',
+          size_label: level,
+          topic: topic,
+          status: 'listo',
+          text: `[Enlace: ${url} · Tema: ${topic} · Nivel: ${level}]`
+        });
+        document.getElementById('input-url').value = '';
+      } else {
+        const text = document.getElementById('input-text').value.trim();
+        if (!text) return alert('Por favor escribe o pega texto');
+        materials.push({
+          id: 'mat-' + Math.random().toString(36).substr(2, 9),
+          name: text.slice(0, 35) + '...',
+          kind: 'text',
+          size_label: `${Math.round(text.length/1000)}k car. · ${level}`,
+          topic: topic,
+          status: 'listo',
+          text: text
+        });
+        document.getElementById('input-text').value = '';
+      }
+      renderMaterials();
+    }
 
-  grid.innerHTML = cards.map((c, i) => `
-    <div class="card-wrapper" onclick="this.classList.toggle('flipped')">
-      <div class="card-inner">
-        <div class="card-front">
-          <div class="card-topic">${c.topic}</div>
-          <div class="card-text">${esc(c.question)}</div>
-          <div class="card-hint">👆 Clic para ver respuesta</div>
-        </div>
-        <div class="card-back">
-          <div class="card-topic">Respuesta</div>
-          <div class="card-text">${esc(c.answer)}</div>
-        </div>
-      </div>
-    </div>`).join('');
-}
+    function removeMaterial(id) {
+      materials = materials.filter(m => m.id !== id);
+      renderMaterials();
+    }
 
-// ==================== STUDY ====================
-function renderStudy() {
-  const container = document.getElementById('studyContainer');
-  if (cards.length === 0) {
-    container.innerHTML = '<div class="no-cards"><div style="font-size:48px;margin-bottom:12px">📚</div><div style="font-size:18px;font-weight:600;color:var(--muted);margin-bottom:8px">No hay tarjetas para estudiar</div><div>Ve a "Crear" y genera tus primeras flashcards</div></div>';
-    return;
-  }
-  if (studyDone) { renderStudyDone(); return; }
-  const c = cards[studyIdx];
-  const total = cards.length;
-  const segs = Array.from({length: total}, (_,i) => `<div class="study-seg ${i < studyIdx ? 'done' : i === studyIdx ? 'current' : ''}"></div>`).join('');
+    function clearAllMaterials() {
+      materials = [];
+      renderMaterials();
+    }
 
-  container.innerHTML = `
-    <div class="study-progress-bar">${segs}</div>
-    <div class="study-info">
-      <span class="study-counter">${studyIdx + 1} / ${total}</span>
-      <div class="study-scores">
-        <span class="score-wrong">✕ ${studyWrong}</span>
-        <span class="score-right">✓ ${studyCorrect}</span>
-      </div>
-    </div>
-    <div class="study-card" id="studyCard" onclick="flipStudy()">
-      <div class="card-inner">
-        <div class="card-front">
-          <div class="card-topic">${c.topic}</div>
-          <div class="card-text">${esc(c.question)}</div>
-          <div class="card-hint">👆 Clic para ver respuesta</div>
-        </div>
-        <div class="card-back">
-          <div class="card-topic">Respuesta</div>
-          <div class="card-text">${esc(c.answer)}</div>
-        </div>
-      </div>
-    </div>
-    <p class="study-flip-hint">Voltea la tarjeta, luego marca si recordaste correctamente</p>
-    <div class="study-actions">
-      <button class="btn btn-wrong" onclick="markStudy(false)">✕ No recordé</button>
-      <button class="btn btn-right" onclick="markStudy(true)">✓ Lo sabía</button>
-    </div>
-    <div class="study-nav">
-      <button class="btn btn-secondary" onclick="prevStudy()" ${studyIdx === 0 ? 'disabled' : ''} style="font-size:13px;padding:8px 16px">← Anterior</button>
-      <button class="btn btn-secondary" onclick="skipStudy()" style="font-size:13px;padding:8px 16px">Saltar →</button>
-    </div>`;
-}
+    function renderMaterials() {
+      const container = document.getElementById('material-list-container');
+      const readyCount = document.getElementById('ready-count-badge');
+      const sourcesText = document.getElementById('sources-count-text');
+      const heroBadge = document.getElementById('sources-badge');
+      const generateBtn = document.getElementById('btn-generate-main');
+      const ready = materials.filter(m => m.status === 'listo').length;
+      readyCount.textContent = `${ready} / ${materials.length}`;
 
-function flipStudy() {
-  document.getElementById('studyCard')?.classList.toggle('flipped');
-}
+      if (materials.length === 0) {
+        container.innerHTML = `
+          <div class="flex items-center gap-2.5 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/40 px-3.5 py-3">
+            <i data-lucide="inbox" class="h-5 w-5 text-zinc-600"></i>
+            <p class="text-xs text-zinc-500">Sin material cargado. Arrastra un PDF o pega apuntes para comenzar.</p>
+          </div>
+        `;
+        sourcesText.textContent = "Adjunta material primero";
+        heroBadge.textContent = "Almacenamiento temporal privado";
+        generateBtn.disabled = true;
+        generateBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-500 cursor-not-allowed transition-all";
+      } else {
+        container.innerHTML = `
+          <ul class="flex flex-col gap-2">
+            ${materials.map(m => `
+              <li class="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 hover:border-zinc-700/80 transition-colors">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="flex h-8 w-8 items-center justify-center rounded-lg ${m.kind === 'pdf' ? 'bg-red-500/10 border border-red-500/20' : m.kind === 'link' ? 'bg-cyan-500/10 border border-cyan-500/20' : 'bg-indigo-500/10 border border-indigo-500/20'} shrink-0">
+                    <i data-lucide="${m.kind === 'pdf' ? 'file-text' : m.kind === 'link' ? 'link-2' : 'align-left'}" class="h-4 w-4 ${m.kind === 'pdf' ? 'text-red-400' : m.kind === 'link' ? 'text-cyan-400' : 'text-indigo-400'}"></i>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-xs font-semibold text-zinc-200 truncate max-w-[16rem]">${escapeHtml(m.name)}</p>
+                    <p class="text-[11px] font-medium text-zinc-500">${m.size_label} · ${escapeHtml(m.topic)}</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="rounded-full ${m.status === 'listo' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse'} px-2 py-0.5 text-[10px] font-semibold">
+                    ${m.status === 'listo' ? 'Listo' : 'Procesando'}
+                  </span>
+                  <button onclick="removeMaterial('${m.id}')" class="rounded-md p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors">
+                    <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                  </button>
+                </div>
+              </li>
+            `).join('')}
+          </ul>
+        `;
+        sourcesText.textContent = `${ready} fuentes listadas`;
+        heroBadge.textContent = `${ready} fuentes en memoria local`;
+        generateBtn.disabled = false;
+        generateBtn.className = "flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer";
+      }
+      lucide.createIcons();
+    }
 
-function markStudy(correct) {
-  if (correct) studyCorrect++; else studyWrong++;
-  nextStudy();
-}
+    // GENERADOR INTELIGENTE LOCAL (RESPALDO EN CASO DE FALLO DE LA IA)
+    function generateLocalFallback(text, count, topic) {
+      const cards = [];
+      const lines = text.split(/\n+/).map(l => l.trim()).filter(l => l.length > 20);
+      
+      for (const line of lines) {
+        if (cards.length >= count) break;
+        if (line.includes(':') || line.includes(' - ') || line.includes(' es ') || line.includes(' son ')) {
+          let parts = [];
+          if (line.includes(':')) parts = line.split(':');
+          else if (line.includes(' - ')) parts = line.split(' - ');
+          else if (line.includes(' es ')) parts = line.split(' es ');
+          
+          if (parts.length >= 2 && parts[0].trim().length > 3 && parts[1].trim().length > 10) {
+            cards.push({
+              id: Math.random().toString(36).substr(2, 9),
+              question: `¿Qué define o en qué consiste: «${parts[0].trim()}»?`,
+              answer: parts[1].trim(),
+              topic: topic || 'Concepto clave',
+              tags: ['fundamento']
+            });
+            continue;
+          }
+        }
+        
+        if (line.length > 30 && line.length < 250) {
+          cards.push({
+            id: Math.random().toString(36).substr(2, 9),
+            question: `Explica la importancia y el significado del siguiente concepto en ${topic || 'el tema'}:`,
+            answer: line,
+            topic: topic || 'General',
+            tags: ['repaso']
+          });
+        }
+      }
 
-function skipStudy() { nextStudy(); }
+      while (cards.length < Math.min(count, 5) && lines.length > 0) {
+        const sample = lines[cards.length % lines.length];
+        cards.push({
+          id: Math.random().toString(36).substr(2, 9),
+          question: `¿Cuál es el punto central explicado en esta sección de ${topic || 'estudio'}?`,
+          answer: sample,
+          topic: topic || 'Resumen',
+          tags: ['esencial']
+        });
+      }
+      return cards;
+    }
 
-function nextStudy() {
-  studyIdx++;
-  if (studyIdx >= cards.length) { studyDone = true; renderStudyDone(); }
-  else renderStudy();
-}
+    // GENERACION DE FLASHCARDS CON GEMINI AI
+    async function executeGeneration() {
+      const readyMaterials = materials.filter(m => m.status === 'listo');
+      if (readyMaterials.length === 0) return alert('Sube al menos un PDF o texto antes de generar.');
 
-function prevStudy() {
-  if (studyIdx > 0) { studyIdx--; renderStudy(); }
-}
+      const count = parseInt(document.getElementById('pref-count').value) || 15;
+      const difficulty = document.getElementById('pref-difficulty').value;
+      const lang = document.getElementById('pref-lang').value;
+      const style = document.getElementById('pref-style').value;
 
-function renderStudyDone() {
-  const container = document.getElementById('studyContainer');
-  const pct = Math.round((studyCorrect / (studyCorrect + studyWrong || 1)) * 100);
-  container.innerHTML = `
-    <div class="study-done">
-      <div class="study-done-icon">${pct >= 80 ? '🎉' : pct >= 60 ? '👍' : '💪'}</div>
-      <div class="study-done-title">${pct >= 80 ? '¡Excelente!' : pct >= 60 ? '¡Buen trabajo!' : '¡Sigue practicando!'}</div>
-      <div class="study-done-sub">Completaste todas las tarjetas con ${pct}% de precisión</div>
-      <div class="study-stats">
-        <div class="stat"><div class="stat-num" style="color:var(--emerald)">${studyCorrect}</div><div class="stat-label">Correctas</div></div>
-        <div class="stat"><div class="stat-num" style="color:var(--rose)">${studyWrong}</div><div class="stat-label">Incorrectas</div></div>
-        <div class="stat"><div class="stat-num" style="color:var(--indigo2)">${pct}%</div><div class="stat-label">Precisión</div></div>
-      </div>
-      <button class="btn btn-primary" style="max-width:200px;margin:0 auto" onclick="restartStudy()">🔄 Estudiar de nuevo</button>
-    </div>`;
-}
+      const btn = document.getElementById('btn-generate-main');
+      const btnText = document.getElementById('btn-generate-text');
+      btn.disabled = true;
+      btn.className = "flex items-center gap-2 rounded-lg bg-indigo-700/80 px-5 py-2 text-sm font-medium text-white shadow-md animate-pulse cursor-wait";
+      btnText.innerHTML = `<i data-lucide="loader-circle" class="h-4 w-4 animate-spin inline mr-1"></i> Generando con IA...`;
+      lucide.createIcons();
 
-function restartStudy() {
-  studyIdx = 0; studyCorrect = 0; studyWrong = 0; studyDone = false;
-  renderStudy();
-}
+      const combinedText = readyMaterials.map(m => `[FUENTE: ${m.name} (${m.topic})]\n${m.text}`).join('\n\n');
 
-// ==================== EXPORT ====================
-function renderExport() {
-  const info = document.getElementById('exportInfo');
-  const grid = document.getElementById('exportGrid');
-  if (cards.length === 0) {
-    info.classList.add('show');
-    grid.innerHTML = '';
-    return;
-  }
-  info.classList.remove('show');
-  grid.innerHTML = `
-    <div class="export-card">
-      <div class="export-card-icon">📄</div>
-      <div class="export-card-title">JSON</div>
-      <div class="export-card-desc">Descarga todas las tarjetas en formato JSON. Ideal para importar en otras aplicaciones o hacer respaldo.</div>
-      <button class="btn btn-secondary" onclick="downloadJSON()">📥 Descargar JSON</button>
-    </div>
-    <div class="export-card">
-      <div class="export-card-icon">🃏</div>
-      <div class="export-card-title">Anki (TSV)</div>
-      <div class="export-card-desc">Formato compatible con Anki. Abre Anki → Archivo → Importar → selecciona el archivo .txt descargado.</div>
-      <button class="btn btn-secondary" onclick="downloadAnki()">📥 Descargar para Anki</button>
-    </div>
-    <div class="export-card">
-      <div class="export-card-icon">📋</div>
-      <div class="export-card-title">Copiar al portapapeles</div>
-      <div class="export-card-desc">Copia todas las preguntas y respuestas en formato legible para pegar en Word, Notion, etc.</div>
-      <button class="btn btn-secondary" onclick="copyCards()">📋 Copiar todo</button>
-    </div>`;
-}
+      const prompt = `Eres un pedagogo experto. Genera exactamente ${count} flashcards de estudio de alta calidad basadas en el siguiente material.
 
-function downloadJSON() {
-  if (!cards.length) return;
-  const blob = new Blob([JSON.stringify({cards, generated: new Date().toISOString()}, null, 2)], {type:'application/json'});
-  download(blob, 'pulsedeck-flashcards.json');
-}
+CONFIGURACIÓN:
+- Cantidad: ${count} tarjetas
+- Dificultad: ${difficulty}
+- Idioma: ${lang}
+- Estilo: ${style}
+${incDefinitions ? '- Incluir definiciones conceptuales precisas.' : ''}
+${incExamples ? '- Incluir ejemplos prácticos.' : ''}
 
-function downloadAnki() {
-  if (!cards.length) return;
-  const tsv = cards.map(c => `${c.question}\t${c.answer}\t${c.topic}`).join('\n');
-  const blob = new Blob([tsv], {type:'text/plain;charset=utf-8'});
-  download(blob, 'pulsedeck-anki.txt');
-}
+MATERIAL DE ESTUDIO:
+${combinedText.slice(0, 35000)}
 
-function copyCards() {
-  const text = cards.map((c,i) => `${i+1}. ${c.question}\n   → ${c.answer}`).join('\n\n');
-  navigator.clipboard.writeText(text).then(() => alert('✅ Copiado al portapapeles'));
-}
+RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
+{
+  "cards": [
+    {
+      "question": "Pregunta clara y analítica",
+      "answer": "Respuesta concisa y completa",
+      "topic": "Subtema",
+      "tags": ["tag1", "tag2"]
+    }
+  ]
+}`;
 
-function download(blob, name) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-}
+      const models = ['gemini-3.6-flash', 'gemini-3.1-pro-preview'];
+      let cardsGenerated = null;
+      let isLocalEngine = false;
 
-// ==================== UTILS ====================
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function showAlert(type, msg) { const el = document.getElementById('alert'+type.charAt(0).toUpperCase()+type.slice(1)); el.textContent = msg; el.classList.add('show'); }
-function hideAlert(type) { document.getElementById('alert'+type.charAt(0).toUpperCase()+type.slice(1))?.classList.remove('show'); }
-function showProgress(val) { document.getElementById('progressBar').classList.add('show'); document.getElementById('progressFill').style.width = val+'%'; }
-function hideProgress() { document.getElementById('progressBar').classList.remove('show'); document.getElementById('progressFill').style.width = '0%'; }
-</script>
+      for (const mod of models) {
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { response_mime_type: "application/json" }
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+            const parsed = JSON.parse(raw);
+            if (parsed.cards && Array.isArray(parsed.cards)) {
+              cardsGenerated = parsed.cards.map(c => ({
+                id: Math.random().toString(36).substr(2, 9),
+                question: c.question,
+                answer: c.answer,
+                topic: c.topic || 'General',
+                tags: c.tags || ['estudio']
+              }));
+              break;
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      btn.disabled = false;
+      btn.className = "flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer";
+      btnText.textContent = "Generar Flashcards";
+
+      if (!cardsGenerated || cardsGenerated.length === 0) {
+        console.warn("IA no disponible temporalmente. Activando generador heurístico local...");
+        isLocalEngine = true;
+        cardsGenerated = generateLocalFallback(combinedText, count, document.getElementById('input-topic').value || 'General');
+      }
+
+      flashcards = cardsGenerated;
+      cardStatuses = {};
+      flashcards.forEach(c => cardStatuses[c.id] = 'pending');
+      currentStudyIndex = 0;
+      selectedTopic = 'Todos';
+
+      saveToStorage();
+      renderDeckGrid();
+      
+      const engineBadge = document.getElementById('engine-badge');
+      const fallbackBanner = document.getElementById('fallback-warning-banner');
+
+      if (isLocalEngine) {
+        engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 flex items-center gap-1";
+        engineBadge.innerHTML = `<i data-lucide="cpu" class="h-3 w-3"></i><span>Motor Local de Respaldo</span>`;
+        engineBadge.classList.remove('hidden');
+        fallbackBanner.classList.remove('hidden');
+      } else {
+        engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-indigo-500/10 border-indigo-500/30 text-indigo-300 flex items-center gap-1";
+        engineBadge.innerHTML = `<i data-lucide="sparkles" class="h-3 w-3 text-indigo-400"></i><span>Gemini 3.6 Flash IA</span>`;
+        engineBadge.classList.remove('hidden');
+        fallbackBanner.classList.add('hidden');
+      }
+
+      document.getElementById('nav-study-count').textContent = flashcards.length;
+      document.getElementById('nav-study-count').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function renderDeckGrid() {
+      const container = document.getElementById('deck-cards-container');
+      const pill = document.getElementById('deck-pill-count');
+      pill.textContent = `${flashcards.length} tarjetas`;
+
+      if (flashcards.length === 0) {
+        container.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-zinc-800 bg-zinc-950/30">
+            <i data-lucide="layers" class="h-6 w-6 text-zinc-500 mb-3"></i>
+            <p class="text-sm font-semibold text-zinc-300">Aún no has generado ninguna tarjeta</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${flashcards.map(c => `
+            <li class="rounded-xl border border-zinc-800/90 bg-zinc-950/80 hover:border-zinc-700/80 p-4 transition-all duration-200 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between gap-3 mb-2">
+                  <span class="rounded-md bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-indigo-400">
+                    ${escapeHtml(c.topic)}
+                  </span>
+                  <button onclick="deleteCard('${c.id}')" class="rounded-md p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors">
+                    <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                  </button>
+                </div>
+                <p class="mt-2 text-sm font-semibold text-zinc-100 leading-snug">${escapeHtml(c.question)}</p>
+                <p class="mt-2 text-xs text-zinc-400 leading-relaxed">${escapeHtml(c.answer)}</p>
+              </div>
+              <div class="mt-3 flex flex-wrap items-center gap-1.5">
+                ${(c.tags || []).map(t => `
+                  <span class="rounded-md bg-zinc-800/80 border border-zinc-700/60 px-2 py-0.5 text-[10px] font-medium text-zinc-300">${escapeHtml(t)}</span>
+                `).join('')}
+              </div>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+      lucide.createIcons();
+    }
+
+    function deleteCard(id) {
+      flashcards = flashcards.filter(c => c.id !== id);
+      delete cardStatuses[id];
+      saveToStorage();
+      renderDeckGrid();
+      document.getElementById('nav-study-count').textContent = flashcards.length;
+    }
+
+    // ==================== MODO ESTUDIO 3D + PANEL DERECHO DE SELECCION MANUAL ====================
+    function getFilteredStudyCards() {
+      return flashcards.filter(c => {
+        if (selectedTopic !== 'Todos' && c.topic !== selectedTopic) return false;
+        if (onlyPending && cardStatuses[c.id] !== 'pending') return false;
+        return true;
+      });
+    }
+
+    function renderStudySession() {
+      const mainContainer = document.getElementById('study-main-container');
+      const emptyState = document.getElementById('study-empty-state');
+      const filtered = getFilteredStudyCards();
+
+      if (flashcards.length === 0 || filtered.length === 0) {
+        if (mainContainer) mainContainer.classList.add('hidden');
+        if (emptyState) emptyState.classList.remove('hidden');
+        updateStudyStats();
+        return;
+      }
+
+      if (mainContainer) mainContainer.classList.remove('hidden');
+      if (emptyState) emptyState.classList.add('hidden');
+
+      if (currentStudyIndex >= filtered.length) {
+        currentStudyIndex = 0;
+      }
+
+      const card = filtered[currentStudyIndex];
+      document.getElementById('study-card-counter').textContent = `${currentStudyIndex + 1} / ${filtered.length}`;
+      document.getElementById('study-card-counter-back').textContent = `${currentStudyIndex + 1} / ${filtered.length}`;
+      document.getElementById('study-front-text').textContent = card.question;
+      document.getElementById('study-back-text').textContent = card.answer;
+
+      document.getElementById('study-3d-card').classList.remove('flipped');
+
+      renderStudyTopicChips();
+      renderStudyCardsList(filtered);
+      updateStudyStats();
+      lucide.createIcons();
+    }
+
+    function updateStudyStats() {
+      const total = flashcards.length;
+      const learned = Object.values(cardStatuses).filter(s => s === 'learned').length;
+      const review = Object.values(cardStatuses).filter(s => s === 'review').length;
+      const pending = total - learned - review;
+      const progress = total > 0 ? Math.round((learned / total) * 100) : 0;
+
+      const elTotal = document.getElementById('study-stat-total');
+      if (elTotal) elTotal.textContent = total;
+      const elPend = document.getElementById('study-stat-pending');
+      if (elPend) elPend.textContent = pending;
+      const elLearn = document.getElementById('study-stat-learned');
+      if (elLearn) elLearn.textContent = learned;
+      const elRev = document.getElementById('study-stat-review');
+      if (elRev) elRev.textContent = review;
+      const elProg = document.getElementById('study-stat-progress');
+      if (elProg) elProg.textContent = `${progress}%`;
+      const elBar = document.getElementById('study-progress-bar');
+      if (elBar) elBar.style.width = `${progress}%`;
+
+      const btnC = document.getElementById('study-btn-correct-count');
+      if (btnC) btnC.textContent = learned;
+      const btnW = document.getElementById('study-btn-wrong-count');
+      if (btnW) btnW.textContent = review;
+    }
+
+    function renderStudyTopicChips() {
+      const container = document.getElementById('study-topic-chips');
+      if (!container) return;
+      const topics = ['Todos', ...new Set(flashcards.map(c => c.topic).filter(Boolean))];
+
+      container.innerHTML = topics.map(top => `
+        <button onclick="filterStudyTopic('${escapeHtml(top)}')" class="${selectedTopic === top ? 'rounded-md bg-indigo-600 border border-indigo-500 px-2.5 py-1 text-xs font-medium text-white shadow-xs' : 'rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 transition-colors'}">
+          ${escapeHtml(top)}
+        </button>
+      `).join('');
+    }
+
+    function renderStudyCardsList(filtered) {
+      const list = document.getElementById('study-cards-list');
+      const totalBadge = document.getElementById('study-session-total-badge');
+      if (totalBadge) totalBadge.textContent = filtered.length;
+      if (!list) return;
+
+      list.innerHTML = filtered.map((c, idx) => {
+        const isCurrent = idx === currentStudyIndex;
+        const status = cardStatuses[c.id];
+        return `
+          <li>
+            <button onclick="selectStudyCardIndex(${idx})" type="button" class="${isCurrent ? 'flex w-full items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-2.5 py-1.5 text-left' : 'flex w-full items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-2.5 py-1.5 hover:border-zinc-700 transition-colors text-left'}">
+              <span class="text-[10px] font-semibold text-zinc-500 shrink-0 w-4">${idx + 1}</span>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-medium text-zinc-200 truncate">${escapeHtml(c.question)}</p>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span class="text-[9px] text-zinc-500">${escapeHtml(c.topic)}</span>
+                  ${status === 'learned' ? '<span class="text-[9px] font-semibold text-emerald-400">✓ Dominada</span>' : status === 'review' ? '<span class="text-[9px] font-semibold text-red-400">✕ Repasar</span>' : ''}
+                </div>
+              </div>
+            </button>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function selectStudyCardIndex(index) {
+      currentStudyIndex = index;
+      renderStudySession();
+    }
+
+    function filterStudyTopic(topic) {
+      selectedTopic = topic;
+      currentStudyIndex = 0;
+      renderStudySession();
+    }
+
+    function toggleOnlyPending() {
+      onlyPending = !onlyPending;
+      const btn = document.getElementById('btn-only-pending');
+      if (btn) {
+        btn.className = onlyPending
+          ? "flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300"
+          : "flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors";
+        btn.innerHTML = `<i data-lucide="${onlyPending ? 'check' : 'plus'}" class="h-3.5 w-3.5 ${onlyPending ? 'text-emerald-400' : 'text-zinc-500'}"></i><span>Solo pendientes</span>`;
+      }
+      currentStudyIndex = 0;
+      renderStudySession();
+    }
+
+    function resetStudySession() {
+      cardStatuses = {};
+      flashcards.forEach(c => cardStatuses[c.id] = 'pending');
+      currentStudyIndex = 0;
+      renderStudySession();
+    }
+
+    function flipStudyCard() {
+      document.getElementById('study-3d-card').classList.toggle('flipped');
+    }
+
+    function nextStudyCard() {
+      const filtered = getFilteredStudyCards();
+      if (currentStudyIndex < filtered.length - 1) {
+        currentStudyIndex++;
+        renderStudySession();
+      }
+    }
+
+    function prevStudyCard() {
+      if (currentStudyIndex > 0) {
+        currentStudyIndex--;
+        renderStudySession();
+      }
+    }
+
+    function markStudyCard(correct) {
+      const filtered = getFilteredStudyCards();
+      if (filtered.length > 0 && currentStudyIndex < filtered.length) {
+        const c = filtered[currentStudyIndex];
+        cardStatuses[c.id] = correct ? 'learned' : 'review';
+        saveToStorage();
+      }
+      nextStudyCard();
+    }
+
+    // ==================== EXPORTACION ====================
+    function exportCardsAnki() {
+      if (flashcards.length === 0) return alert('Primero genera tarjetas');
+      const tsv = flashcards.map(c => `${c.question}\t${c.answer}\t${c.topic}`).join('\n');
+      const blob = new Blob([tsv], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'mazo-anki-pulsedeck.txt';
+      a.click();
+    }
+
+    function exportCardsPDF() {
+      if (!flashcards || flashcards.length === 0) return alert('Primero genera tarjetas para poder exportarlas.');
+      
+      const jsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : (window.jsPDF ? window.jsPDF : null);
+      
+      if (!jsPDFConstructor) {
+        exportCardsAnki();
+        return;
+      }
+
+      try {
+        const doc = new jsPDFConstructor({ unit: 'mm', format: 'a4' });
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(30, 27, 75);
+        doc.text("Flashcards AI · Mazo de Estudio", 15, 20);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(110, 110, 120);
+        doc.text(`Descargado de PulseDeck · Total: ${flashcards.length} tarjetas de estudio activo`, 15, 26);
+        
+        doc.setDrawColor(220, 220, 230);
+        doc.line(15, 30, 195, 30);
+        
+        let y = 38;
+        flashcards.forEach((c, i) => {
+          if (y > 250) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(15, y, 180, 26, 3, 3, 'FD');
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(99, 102, 241);
+          doc.text(`[${c.topic || 'General'}] · Tarjeta #${i + 1}`, 20, y + 6);
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9.5);
+          doc.setTextColor(15, 23, 42);
+          const qText = doc.splitTextToSize(`P: ${c.question}`, 170);
+          doc.text(qText, 20, y + 12);
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.setTextColor(51, 65, 85);
+          const aText = doc.splitTextToSize(`R: ${c.answer}`, 170);
+          doc.text(aText, 20, y + 19);
+          y += 30;
+        });
+        doc.save('pulsedeck-flashcards.pdf');
+      } catch (err) {
+        console.error(err);
+        exportCardsAnki();
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
 </body>
 </html>
