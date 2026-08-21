@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flashcards AI · PulseDeck Studio</title>
+  <link rel="icon" type="image/png" href="logo.png">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -55,13 +56,11 @@
 
     <!-- DESK NAV -->
     <nav class="col-span-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/80 backdrop-blur-md px-4 py-2.5 w-full shadow-lg shadow-black/20">
-      <div class="flex items-center gap-2.5">
-        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-          <i data-lucide="sparkles" class="h-4 w-4 text-indigo-400"></i>
-        </div>
+      <div class="flex items-center gap-3">
+        <img src="logo.png" alt="Flashcards AI Logo" class="h-8 w-8 rounded-lg shadow-md border border-indigo-500/30 object-cover">
         <div class="flex items-center">
-          <span class="text-sm font-semibold tracking-tight text-zinc-100">Flashcards AI</span>
-          <span class="text-xs font-normal text-zinc-500 ml-1">· Studio</span>
+          <span class="text-base font-bold tracking-tight text-zinc-100">Flashcards AI</span>
+          <span class="text-xs font-medium text-indigo-400 ml-1.5">· Studio</span>
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-2">
@@ -75,12 +74,6 @@
           <span id="nav-study-count" class="hidden text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-full font-bold">0</span>
         </button>
         
-        <!-- BOTON CONFIGURAR API KEY OPCIONAL -->
-        <button onclick="openApiKeyModal()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:text-indigo-300 hover:border-indigo-500/40 transition-colors cursor-pointer">
-          <i data-lucide="key" class="h-3.5 w-3.5 text-indigo-400"></i>
-          <span id="nav-key-status">API Key</span>
-        </button>
-
         <div class="flex items-center rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5 ml-1">
           <button onclick="exportCardsPDF()" class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer">
             <i data-lucide="file-down" class="h-3.5 w-3.5"></i>
@@ -102,14 +95,10 @@
         <div class="flex items-start gap-3">
           <i data-lucide="alert-triangle" class="h-5 w-5 text-amber-400 shrink-0 mt-0.5"></i>
           <div class="flex-1 text-xs leading-relaxed">
-            <p class="font-bold text-amber-100" id="api-alert-title">Google Gemini no pudo responder</p>
+            <p class="font-bold text-amber-100" id="api-alert-title">Información del Motor</p>
             <p class="mt-0.5 text-amber-200/90" id="api-alert-desc">
               Tus flashcards fueron generadas al instante con el <b>Motor Local Autónomo</b>.
             </p>
-            <button onclick="openApiKeyModal()" class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-2.5 py-1 text-[11px] font-semibold text-amber-100 transition-colors cursor-pointer">
-              <i data-lucide="key" class="h-3 w-3"></i>
-              <span>Configurar API Key / Vercel</span>
-            </button>
           </div>
           <button onclick="document.getElementById('api-alert-banner').classList.add('hidden')" class="text-amber-400/80 hover:text-amber-200 p-1">
             <i data-lucide="x" class="h-4 w-4"></i>
@@ -123,13 +112,13 @@
           <div class="flex-1 min-w-0 flex flex-col justify-center">
             <div class="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 mb-3 self-start">
               <i data-lucide="sparkles" class="h-3.5 w-3.5 text-indigo-400"></i>
-              <span class="text-xs font-medium text-indigo-300">Generador Inteligente Dual (Gemini IA & Local)</span>
+              <span class="text-xs font-medium text-indigo-300">Generador Inteligente de Flashcards</span>
             </div>
             <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-zinc-100 leading-tight">
               Convierte PDFs, videos y apuntes en tarjetas de estudio activo
             </h1>
             <p class="mt-3 max-w-xl text-sm sm:text-base text-zinc-400 leading-relaxed">
-              Sube tus archivos o pega transcripciones. Elige entre el motor <b class="text-zinc-200">Google Gemini Flash</b> (servidor Vercel o API Key) o el <b class="text-zinc-200">Motor Local Autónomo</b> para estructurar mazos listos para memorización.
+              Sube tus archivos o pega transcripciones. Elige entre el motor <b class="text-zinc-200">Google Gemini Flash IA</b> o el <b class="text-zinc-200">Motor Local Autónomo</b> para estructurar mazos listos para memorización.
             </p>
             <div class="mt-5 flex flex-wrap items-center gap-3">
               <a href="#upload-section" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-indigo-600/30 transition-all">
@@ -190,7 +179,7 @@
               </div>
               <button onclick="clearAllMaterials()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors cursor-pointer">
                 <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                <span>Limpiar</span>
+                <span>Limpiar fuentes</span>
               </button>
             </div>
             <div id="dropzone" class="mt-3.5 w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-800 hover:border-indigo-500/50 bg-zinc-950/40 hover:bg-zinc-950/80 transition-all duration-200 p-6 text-center relative">
@@ -385,7 +374,13 @@
               <p class="text-xs text-zinc-500">Revisa, edita o exporta las tarjetas antes de comenzar tu sesión de estudio.</p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
+          
+          <!-- BOTONES DE ACCION DEL MAZO -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="clearAllCards()" title="Eliminar todas las tarjetas de la baraja" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition-colors cursor-pointer">
+              <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+              <span>Limpiar Todo</span>
+            </button>
             <button onclick="executeGeneration()" class="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer">
               <i data-lucide="refresh-cw" class="h-3.5 w-3.5 text-indigo-400"></i>
               <span>Regenerar</span>
@@ -576,99 +571,8 @@
 
   </div>
 
-  <!-- MODAL PARA CONFIGURAR API KEY DE GOOGLE -->
-  <div id="api-key-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-    <div class="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
-      <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
-        <div class="flex items-center gap-2">
-          <i data-lucide="key" class="h-5 w-5 text-indigo-400"></i>
-          <h3 class="text-base font-bold text-zinc-100">Configurar Gemini API Key</h3>
-        </div>
-        <button onclick="closeApiKeyModal()" class="text-zinc-500 hover:text-zinc-300 p-1">
-          <i data-lucide="x" class="h-4 w-4"></i>
-        </button>
-      </div>
-      
-      <div class="mt-4 space-y-3">
-        <p class="text-xs text-zinc-400 leading-relaxed">
-          <b>En Vercel:</b> Si ya agregaste <code class="text-emerald-300">GEMINI_API_KEY</code> a las Environment Variables de Vercel, no necesitas hacer nada aquí; el servidor la usará automáticamente.<br><br>
-          <b>Opcional para local / GitHub Pages:</b> Puedes ingresar tu API Key personal de Google AI Studio (empieza por <code class="text-indigo-300">AIzaSy...</code>) y se guardará únicamente en tu navegador.
-        </p>
-        <div>
-          <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Google Gemini API Key</label>
-          <input type="password" id="input-api-key-modal" placeholder="AIzaSy..." class="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500">
-        </div>
-        <div class="flex items-center justify-between text-[11px] text-zinc-500">
-          <span>¿No tienes una clave?</span>
-          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-1">
-            <span>Obtener gratis en Google AI Studio</span>
-            <i data-lucide="external-link" class="h-3 w-3"></i>
-          </a>
-        </div>
-      </div>
-
-      <div class="mt-6 flex items-center justify-end gap-2">
-        <button onclick="clearCustomApiKey()" class="rounded-lg border border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors">
-          Borrar clave
-        </button>
-        <button onclick="saveApiKeyModal()" class="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 text-xs font-medium text-white shadow-md transition-colors">
-          Guardar y Activar
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- JAVASCRIPT: MOTOR DUAL INTELIGENTE (VERCEL SERVERLESS / DIRECT API / LOCAL AUTÓNOMO) -->
+  <!-- JAVASCRIPT: MOTOR DUAL INTELIGENTE (VERCEL SERVERLESS / LOCAL AUTÓNOMO) -->
   <script>
-    function getActiveApiKey() {
-      return localStorage.getItem('pulsedeck_custom_api_key') || "";
-    }
-
-    function updateApiKeyStatusUI() {
-      const key = getActiveApiKey();
-      const statusBtn = document.getElementById('nav-key-status');
-      if (statusBtn) {
-        if (key && key.trim().length > 10) {
-          statusBtn.textContent = "API Key Activa ✓";
-          statusBtn.parentElement.className = "flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-300 transition-colors cursor-pointer";
-        } else {
-          statusBtn.textContent = "API Key / Vercel";
-          statusBtn.parentElement.className = "flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:text-indigo-300 hover:border-indigo-500/40 transition-colors cursor-pointer";
-        }
-      }
-    }
-
-    function openApiKeyModal() {
-      const modal = document.getElementById('api-key-modal');
-      const input = document.getElementById('input-api-key-modal');
-      input.value = getActiveApiKey();
-      modal.classList.remove('hidden');
-      lucide.createIcons();
-    }
-
-    function closeApiKeyModal() {
-      document.getElementById('api-key-modal').classList.add('hidden');
-    }
-
-    function saveApiKeyModal() {
-      const val = document.getElementById('input-api-key-modal').value.trim();
-      if (val) {
-        localStorage.setItem('pulsedeck_custom_api_key', val);
-      } else {
-        localStorage.removeItem('pulsedeck_custom_api_key');
-      }
-      updateApiKeyStatusUI();
-      closeApiKeyModal();
-      document.getElementById('api-alert-banner').classList.add('hidden');
-    }
-
-    function clearCustomApiKey() {
-      localStorage.removeItem('pulsedeck_custom_api_key');
-      document.getElementById('input-api-key-modal').value = '';
-      updateApiKeyStatusUI();
-      closeApiKeyModal();
-    }
-
     // ESTADO GLOBAL
     let materials = [];
     let flashcards = [];
@@ -693,7 +597,6 @@
 
     function loadFromStorage() {
       try {
-        updateApiKeyStatusUI();
         const savedCards = localStorage.getItem('pulsedeck_flashcards');
         const savedStatuses = localStorage.getItem('pulsedeck_card_statuses');
         const savedMats = localStorage.getItem('pulsedeck_materials');
@@ -880,6 +783,22 @@
       renderMaterials();
     }
 
+    function clearAllCards() {
+      if (flashcards.length === 0) return;
+      if (confirm('¿Estás seguro de que deseas vaciar y eliminar todas las tarjetas del mazo actual?')) {
+        flashcards = [];
+        cardStatuses = {};
+        currentStudyIndex = 0;
+        selectedTopic = 'Todos';
+        saveToStorage();
+        renderDeckGrid();
+        document.getElementById('nav-study-count').textContent = '0';
+        document.getElementById('nav-study-count').classList.add('hidden');
+        const engineBadge = document.getElementById('engine-badge');
+        if (engineBadge) engineBadge.classList.add('hidden');
+      }
+    }
+
     function renderMaterials() {
       const container = document.getElementById('material-list-container');
       const readyCount = document.getElementById('ready-count-badge');
@@ -1029,7 +948,7 @@
       return cards;
     }
 
-    // ==================== GENERACION DUAL (VERCEL / DIRECT API / LOCAL) ====================
+    // ==================== GENERACION DUAL (VERCEL / LOCAL) ====================
     async function executeGeneration() {
       const readyMaterials = materials.filter(m => m.status === 'listo');
       if (readyMaterials.length === 0) return alert('Sube al menos un PDF o añade texto antes de generar.');
@@ -1084,7 +1003,6 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
   ]
 }`;
 
-        // PASO 1: Intentar llamar al backend serverless de Vercel (/api/generate)
         try {
           const vercelRes = await fetch('/api/generate', {
             method: 'POST',
@@ -1108,41 +1026,7 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
             geminiErrorReason = errData.error || `Servidor respondió ${vercelRes.status}`;
           }
         } catch (e) {
-          // Si no está en Vercel (servidor local o GitHub Pages estático), intentar Direct API con la clave del usuario
-          const userKey = getActiveApiKey();
-          if (userKey) {
-            try {
-              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${userKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: prompt }] }],
-                  generationConfig: { response_mime_type: "application/json" }
-                })
-              });
-              if (res.ok) {
-                const data = await res.json();
-                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                const json = JSON.parse(text);
-                if (json.cards && Array.isArray(json.cards) && json.cards.length > 0) {
-                  cardsResult = json.cards.map(c => ({
-                    id: 'c-' + Math.random().toString(36).substr(2, 9),
-                    question: c.question,
-                    answer: c.answer,
-                    topic: c.topic || defaultTopic,
-                    tags: c.tags || ['estudio']
-                  }));
-                }
-              } else {
-                const errData = await res.json().catch(() => ({}));
-                geminiErrorReason = errData.error?.message || `HTTP ${res.status}`;
-              }
-            } catch (err) {
-              geminiErrorReason = err.message;
-            }
-          } else {
-            geminiErrorReason = "En entorno local/estático se requiere configurar una API Key en el botón superior.";
-          }
+          geminiErrorReason = e.message;
         }
       }
 
