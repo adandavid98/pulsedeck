@@ -90,14 +90,14 @@
     <!-- ==================== VISTA 1: GENERADOR ==================== -->
     <div id="view-generate" class="flex flex-col gap-5 w-full">
       
-      <!-- BANNER DE ALERTA DINAMICO SI GOOGLE DA ERROR -->
+      <!-- BANNER DE ALERTA DINAMICO -->
       <div id="api-alert-banner" class="hidden rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-200">
         <div class="flex items-start gap-3">
           <i data-lucide="alert-triangle" class="h-5 w-5 text-amber-400 shrink-0 mt-0.5"></i>
           <div class="flex-1 text-xs leading-relaxed">
             <p class="font-bold text-amber-100" id="api-alert-title">Información del Motor</p>
             <p class="mt-0.5 text-amber-200/90" id="api-alert-desc">
-              Tus flashcards fueron generadas al instante con el <b>Motor Local Autónomo</b>.
+              Tus flashcards fueron generadas con el <b>Motor Local Inteligente</b>.
             </p>
           </div>
           <button onclick="document.getElementById('api-alert-banner').classList.add('hidden')" class="text-amber-400/80 hover:text-amber-200 p-1">
@@ -118,7 +118,7 @@
               Convierte PDFs, videos y apuntes en tarjetas de estudio activo
             </h1>
             <p class="mt-3 max-w-xl text-sm sm:text-base text-zinc-400 leading-relaxed">
-              Sube tus archivos o pega transcripciones. Elige entre el motor <b class="text-zinc-200">Google Gemini Flash IA</b> o el <b class="text-zinc-200">Motor Local Autónomo</b> para estructurar mazos listos para memorización.
+              Sube tus archivos o pega transcripciones. El sistema analiza los conceptos clave y estructura preguntas y respuestas directas y coherentes para memorización activa.
             </p>
             <div class="mt-5 flex flex-wrap items-center gap-3">
               <a href="#upload-section" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-indigo-600/30 transition-all">
@@ -150,7 +150,7 @@
                 <div class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
                   <i data-lucide="cpu" class="h-4 w-4 text-indigo-400"></i>
                   <span class="text-[11px] font-semibold text-zinc-200">2. Motor</span>
-                  <span class="text-[9px] text-zinc-500">Gemini / Local</span>
+                  <span class="text-[9px] text-zinc-500">Gemini / NLP</span>
                 </div>
                 <div class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
                   <i data-lucide="layers" class="h-4 w-4 text-indigo-400"></i>
@@ -278,8 +278,8 @@
             </label>
             <div class="relative">
               <select id="pref-engine" class="w-full appearance-none rounded-lg border border-indigo-500/40 bg-zinc-950 px-3 py-2 text-xs font-medium text-indigo-200 outline-none focus:border-indigo-400 cursor-pointer">
-                <option value="gemini" selected>✨ Gemini Flash IA (Google)</option>
-                <option value="local">⚡ Motor Local Autónomo (Offline)</option>
+                <option value="gemini" selected>✨ Gemini Flash IA (Recomendado)</option>
+                <option value="local">⚡ Motor Local Autónomo</option>
               </select>
               <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400"></i>
             </div>
@@ -571,7 +571,7 @@
 
   </div>
 
-  <!-- JAVASCRIPT: MOTOR DUAL INTELIGENTE (VERCEL SERVERLESS / LOCAL AUTÓNOMO) -->
+  <!-- JAVASCRIPT: MOTOR PEDAGOGICO GEMINI IA & REPARADOR DE TEXTO -->
   <script>
     // ESTADO GLOBAL
     let materials = [];
@@ -583,6 +583,19 @@
     let activeSourceMode = 'text';
     let incDefinitions = true;
     let incExamples = false;
+
+    // LIMPIEZA DE TEXTO (Repara espacios en tildes de PDFs como "Identificaci ó n")
+    function cleanExtractedText(raw) {
+      if (!raw) return '';
+      return raw
+        .replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\s+([áéíóúÁÉÍÓÚñÑ])\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1$2$3')
+        .replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\s+([óÓ])\s+([nN])/g, '$1ón')
+        .replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\s+([íÍ])\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1í$3')
+        .replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\s+([éÉ])\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1é$3')
+        .replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\s+([áÁ])\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1á$3')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    }
 
     // PERSISTENCIA LOCAL STORAGE
     function saveToStorage() {
@@ -725,7 +738,7 @@
             const content = await page.getTextContent();
             fullText += content.items.map(i => i.str).join(' ') + '\n';
           }
-          item.text = fullText.trim();
+          item.text = cleanExtractedText(fullText);
           item.status = 'listo';
           item.size_label = `${pdf.numPages} pág · ${Math.round(fullText.length/1000)}k car.`;
         } catch (e) {
@@ -763,7 +776,7 @@
           size_label: `${Math.round(text.length/1000)}k car. · ${level}`,
           topic: topic,
           status: 'listo',
-          text: text
+          text: cleanExtractedText(text)
         });
         document.getElementById('input-text').value = '';
       }
@@ -853,102 +866,114 @@
       lucide.createIcons();
     }
 
-    // ==================== MOTOR LOCAL INTELIGENTE ====================
+    // ==================== MOTOR LOCAL INTELIGENTE (NLP DE ALTA COHERENCIA) ====================
     function generateSmartLocalCards(text, count, defaultTopic, difficulty, style) {
       const cards = [];
-      const seenQuestions = new Set();
+      const seen = new Set();
 
-      const cleanText = text.replace(/\r\n/g, '\n').replace(/\t/g, ' ');
-      const rawSentences = cleanText.split(/[\n\.\?\!]+/).map(s => s.trim()).filter(s => s.length > 25);
+      const cleanText = cleanExtractedText(text).replace(/\r\n/g, '\n');
+      
+      // Limpieza de líneas irrelevantes (números de página, encabezados repetidos)
+      const rawLines = cleanText.split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 15 && !/^(p[áa]g|p[áa]gina|\d+|\s*[-–—]\s*\d+\s*[-–—]\s*)$/i.test(l));
 
-      for (const sent of rawSentences) {
+      const fullCleanText = rawLines.join(' ');
+      const sentences = fullCleanText.split(/[\.\?\!]+/)
+        .map(s => s.trim())
+        .filter(s => s.length >= 35 && s.length <= 320 && !s.includes('http://') && !s.includes('https://'));
+
+      // 1. Patrones de Definición Explícita ("X es Y", "X se define como Y", "X consiste en Y", "X: Y")
+      const defPatterns = [
+        { regex: /^(.{3,45})\s*:\s*(.{25,})$/, getQ: t => `¿Cómo se define o en qué consiste «${t}»?`, getA: d => d },
+        { regex: /^(.{3,45})\s+se define como\s+(.{20,})$/i, getQ: t => `¿Cuál es la definición exacta de «${t}»?`, getA: d => `Se define como ${d}` },
+        { regex: /^(.{3,45})\s+consiste en\s+(.{20,})$/i, getQ: t => `¿En qué consiste «${t}»?`, getA: d => `Consiste en ${d}` },
+        { regex: /^(.{3,45})\s+es\s+(un|una|el|la|aquel|aquella|el proceso|la técnica|el método|la herramienta)\s+(.{20,})$/i, getQ: t => `¿Qué es «${t}»?`, getA: (art, d) => `Es ${art} ${d}` },
+        { regex: /^(.{3,45})\s+tiene como objetivo\s+(.{20,})$/i, getQ: t => `¿Cuál es el objetivo principal de «${t}»?`, getA: d => `Tiene como objetivo ${d}` },
+        { regex: /^(.{3,45})\s+sirve para\s+(.{20,})$/i, getQ: t => `¿Para qué sirve o cuál es la función de «${t}»?`, getA: d => `Sirve para ${d}` }
+      ];
+
+      for (const sent of sentences) {
         if (cards.length >= count) break;
 
-        let term = '';
-        let definition = '';
+        for (const pat of defPatterns) {
+          const match = sent.match(pat.regex);
+          if (match) {
+            let term = match[1].trim().replace(/^[\d\.\-\*•]+\s*/, '');
+            if (term.length < 3 || term.length > 50 || seen.has(term.toLowerCase())) continue;
+            
+            seen.add(term.toLowerCase());
+            let ans = match[2] || match[0];
+            ans = ans.charAt(0).toUpperCase() + ans.slice(1);
+            if (!ans.endsWith('.')) ans += '.';
 
-        if (sent.includes(':')) {
-          const parts = sent.split(':');
-          if (parts.length >= 2 && parts[0].trim().length >= 3 && parts[0].trim().length <= 50 && parts[1].trim().length >= 15) {
-            term = parts[0].trim();
-            definition = parts[1].trim();
+            cards.push({
+              id: 'c-' + Math.random().toString(36).substr(2, 9),
+              question: pat.getQ(term),
+              answer: ans,
+              topic: defaultTopic || term,
+              tags: ['definición', 'concepto']
+            });
+            break;
           }
-        } else if (sent.toLowerCase().includes(' se define como ')) {
-          const parts = sent.split(/ se define como /i);
-          if (parts.length >= 2 && parts[0].trim().length <= 50) {
-            term = parts[0].trim();
-            definition = parts[1].trim();
-          }
-        } else if (sent.toLowerCase().includes(' consiste en ')) {
-          const parts = sent.split(/ consiste en /i);
-          if (parts.length >= 2 && parts[0].trim().length <= 50) {
-            term = parts[0].trim();
-            definition = 'Consiste en ' + parts[1].trim();
-          }
-        } else if (sent.includes(' - ') && sent.split(' - ')[0].trim().length <= 40) {
-          const parts = sent.split(' - ');
-          term = parts[0].trim();
-          definition = parts[1].trim();
         }
+      }
 
-        if (term && definition && !seenQuestions.has(term.toLowerCase())) {
-          seenQuestions.add(term.toLowerCase());
+      // 2. Extracción de Preguntas de Examen sobre Procesos y Relaciones Clave
+      for (const sent of sentences) {
+        if (cards.length >= count) break;
+        if (seen.has(sent.slice(0, 30).toLowerCase())) continue;
+
+        // Detectar si la oración tiene un sujeto claro y verbo explicativo
+        const words = sent.split(' ');
+        if (words.length >= 8 && words.length <= 35) {
+          seen.add(sent.slice(0, 30).toLowerCase());
+
+          // Limpiar prefijos de listas
+          const cleanSentence = sent.replace(/^[\d\.\-\*•]+\s*/, '').trim();
+          const firstWord = words[0].toLowerCase();
           
-          let questionStr = `¿En qué consiste o cómo se define «${term}»?`;
-          if (style === 'Caso práctico') questionStr = `¿Cuál es el rol práctico y la aplicación de «${term}»?`;
-          else if (style === 'Concepto clave') questionStr = `¿Cuál es el principio fundamental detrás de «${term}»?`;
+          let question = '';
+          if (firstWord === 'para' || firstWord === 'con') {
+            question = `¿Cuál es el propósito del siguiente proceso en ${defaultTopic}?`;
+          } else if (cleanSentence.toLowerCase().includes('debido a') || cleanSentence.toLowerCase().includes('porque')) {
+            question = `¿Cuál es la causa o fundamento de lo siguiente en ${defaultTopic}?`;
+          } else {
+            const subject = words.slice(0, Math.min(4, words.length)).join(' ').replace(/^[\d\.\-\*•]+\s*/, '');
+            question = `Respecto a «${subject}», ¿qué aspecto o principio fundamental se establece?`;
+          }
+
+          let ans = cleanSentence.charAt(0).toUpperCase() + cleanSentence.slice(1);
+          if (!ans.endsWith('.')) ans += '.';
 
           cards.push({
             id: 'c-' + Math.random().toString(36).substr(2, 9),
-            question: questionStr,
-            answer: definition.charAt(0).toUpperCase() + definition.slice(1),
-            topic: defaultTopic || term,
-            tags: ['definición', 'fundamento']
+            question: question,
+            answer: ans,
+            topic: defaultTopic || 'Fundamentos',
+            tags: ['examen', 'análisis']
           });
         }
       }
 
-      const questionTemplates = [
-        (s) => `¿Cuál es la importancia del siguiente principio en ${defaultTopic}?`,
-        (s) => `Explica el siguiente concepto clave de estudio:`,
-        (s) => `¿Qué aspecto fundamental se describe a continuación?`,
-        (s) => `¿Cómo se fundamenta este elemento en ${defaultTopic}?`,
-        (s) => `Analiza y describe la siguiente idea central:`
-      ];
-
-      for (let i = 0; i < rawSentences.length && cards.length < count; i++) {
-        const sent = rawSentences[i];
-        if (sent.length < 35 || sent.length > 280) continue;
-        if (seenQuestions.has(sent.slice(0, 30))) continue;
-        seenQuestions.add(sent.slice(0, 30));
-
-        const tmpl = questionTemplates[cards.length % questionTemplates.length];
+      // 3. Respaldo pedagógico si el texto es muy conciso
+      let idx = 0;
+      while (cards.length < count && sentences.length > 0) {
+        const s = sentences[idx % sentences.length].replace(/^[\d\.\-\*•]+\s*/, '').trim();
         cards.push({
           id: 'c-' + Math.random().toString(36).substr(2, 9),
-          question: tmpl(sent),
-          answer: sent.charAt(0).toUpperCase() + sent.slice(1),
-          topic: defaultTopic || 'General',
-          tags: ['análisis', 'repaso']
-        });
-      }
-
-      let fallbackIdx = 0;
-      while (cards.length < count && rawSentences.length > 0) {
-        const fallbackSent = rawSentences[fallbackIdx % rawSentences.length];
-        cards.push({
-          id: 'c-' + Math.random().toString(36).substr(2, 9),
-          question: `Punto clave #${cards.length + 1} de repaso en ${defaultTopic}:`,
-          answer: fallbackSent,
+          question: `Concepto clave #${cards.length + 1} de estudio en ${defaultTopic}:`,
+          answer: s.charAt(0).toUpperCase() + s.slice(1) + (s.endsWith('.') ? '' : '.'),
           topic: defaultTopic || 'Resumen',
           tags: ['esencial']
         });
-        fallbackIdx++;
+        idx++;
       }
 
       return cards;
     }
 
-    // ==================== GENERACION DUAL (VERCEL / LOCAL) ====================
+    // ==================== GENERACION PEDAGOGICA GEMINI IA ====================
     async function executeGeneration() {
       const readyMaterials = materials.filter(m => m.status === 'listo');
       if (readyMaterials.length === 0) return alert('Sube al menos un PDF o añade texto antes de generar.');
@@ -978,27 +1003,29 @@
         btnText.innerHTML = `<i data-lucide="sparkles" class="h-4 w-4 animate-spin inline mr-1"></i> Consultando Gemini Flash IA...`;
         lucide.createIcons();
 
-        const prompt = `Eres un pedagogo experto. Genera exactamente ${count} flashcards de estudio de alta calidad basadas en el siguiente material.
+        const prompt = `Actúa como un profesor universitario y pedagogo experto en técnicas de aprendizaje activo y tarjetas Anki.
+Tu misión es analizar exhaustivamente el siguiente material de estudio y generar exactamente ${count} flashcards de alta calidad pedagógica.
 
-CONFIGURACIÓN:
-- Cantidad: ${count} tarjetas
-- Dificultad: ${difficulty}
+REGLAS OBLIGATORIAS:
+1. PREGUNTAS CLARAS Y DIRECTAS: Cada tarjeta debe formular una pregunta concreta de examen o concepto (Ej: "¿Cuál es la función principal de X?", "¿Qué diferencia a X de Y?", "¿En qué consiste el principio de Z?").
+2. NUNCA hagas preguntas genéricas vacías como "Analiza la siguiente idea:" o "Explica el siguiente punto:".
+3. RESPUESTAS CONCISAS Y COMPLETAS: La respuesta debe responder exactamente lo que se pregunta, explicando el concepto con claridad sin texto superfluo.
+4. COHERENCIA: Extrae definiciones, causas-efectos, procesos secuenciales, casos y aplicaciones prácticas.
+- Nivel: ${difficulty}
 - Idioma: ${lang}
 - Estilo: ${style}
-${incDefinitions ? '- Incluir definiciones conceptuales precisas.' : ''}
-${incExamples ? '- Incluir ejemplos prácticos.' : ''}
 
 MATERIAL DE ESTUDIO:
 ${combinedText.slice(0, 30000)}
 
-RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
+RESPONDE ESTRICTAMENTE CON UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
 {
   "cards": [
     {
-      "question": "Pregunta clara",
-      "answer": "Respuesta pedagógica",
+      "question": "¿Pregunta concreta y de alto valor pedagógico?",
+      "answer": "Respuesta clara, precisa y directa.",
       "topic": "${defaultTopic}",
-      "tags": ["tag1", "tag2"]
+      "tags": ["concepto", "clave"]
     }
   ]
 }`;
@@ -1023,7 +1050,7 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
             }
           } else {
             const errData = await vercelRes.json().catch(() => ({}));
-            geminiErrorReason = errData.error || `Servidor respondió ${vercelRes.status}`;
+            geminiErrorReason = errData.error || `Servidor respondió con código ${vercelRes.status}`;
           }
         } catch (e) {
           geminiErrorReason = e.message;
@@ -1033,14 +1060,14 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
       // FALLBACK LOCAL SI GEMINI FALLA O SI EL USUARIO ELIGIÓ LOCAL DIRECTAMENTE
       if (!cardsResult || cardsResult.length === 0) {
         usedLocal = true;
-        btnText.textContent = "Procesando con Motor Local...";
+        btnText.textContent = "Generando con Motor Local Inteligente...";
         cardsResult = generateSmartLocalCards(combinedText, count, defaultTopic, difficulty, style);
         
         if (engineChoice === 'gemini') {
           alertBanner.classList.remove('hidden');
           const alertDesc = document.getElementById('api-alert-desc');
           if (geminiErrorReason) {
-            alertDesc.innerHTML = `Info: <b class="text-amber-100">${escapeHtml(geminiErrorReason)}</b>.<br>Tus flashcards fueron creadas al instante por el <b>Motor Local Autónomo</b>.`;
+            alertDesc.innerHTML = `Detalle: <b class="text-amber-100">${escapeHtml(geminiErrorReason)}</b>.<br>En tu enlace de Vercel desplegado, se ejecutará directamente con tu <b>GOOGLE_API_KEY</b>.`;
           }
         }
       }
@@ -1058,10 +1085,10 @@ RESPONDE EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO con este formato:
       const engineBadge = document.getElementById('engine-badge');
       if (usedLocal) {
         engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 flex items-center gap-1";
-        engineBadge.innerHTML = `<i data-lucide="zap" class="h-3 w-3"></i><span>Motor Local Autónomo</span>`;
+        engineBadge.innerHTML = `<i data-lucide="zap" class="h-3 w-3"></i><span>Motor Local Inteligente</span>`;
       } else {
         engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-indigo-500/10 border-indigo-500/30 text-indigo-300 flex items-center gap-1";
-        engineBadge.innerHTML = `<i data-lucide="sparkles" class="h-3 w-3 text-indigo-400"></i><span>Gemini Flash IA</span>`;
+        engineBadge.innerHTML = `<i data-lucide="sparkles" class="h-3 w-3 text-indigo-400"></i><span>✨ Gemini Flash IA</span>`;
       }
       engineBadge.classList.remove('hidden');
 
