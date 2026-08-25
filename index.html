@@ -1252,33 +1252,44 @@
 - 'answer': Respuesta concisa, precisa y completa.`;
         }
 
-        // Limitar texto enviado para evitar timeouts (max ~12000 chars = ~3000 tokens, respuesta en <15s)
-        const textForGemini = combinedText.slice(0, 12000);
+        // === OPTIMIZACIÓN DE TOKENS: Pre-extracción inteligente ===
+        // En lugar de enviar texto crudo al modelo, extraemos solo las unidades
+        // más informativas del PDF (las que contienen conceptos reales).
+        // Esto reduce el payload de ~12,000 chars a ~4,000-5,000 chars (~70% menos tokens).
+        function extractKeyUnits(raw, maxChars) {
+          const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 15);
+          const units = [];
+          const noise = /^(p[aá]g|p\.|figura|tabla|secci[oó]n|cap[ií]tulo|fuente|\d+\s*$|www\.|http)/i;
+          for (const line of lines) {
+            if (noise.test(line)) continue;
+            // Priorizar líneas con ":", palabras clave de definición o longitud informativa
+            const score =
+              (line.includes(':') ? 3 : 0) +
+              (/se define|consiste en|tiene como|sirve para|permite|genera|reduce|mejora|establece/i.test(line) ? 2 : 0) +
+              (line.length > 60 && line.length < 300 ? 1 : 0);
+            units.push({ text: line, score });
+          }
+          // Ordenar por relevancia, luego tomar suficientes para llenar maxChars
+          units.sort((a, b) => b.score - a.score);
+          let result = '';
+          for (const u of units) {
+            if (result.length + u.text.length + 2 > maxChars) break;
+            result += u.text + '\n';
+          }
+          return result.trim() || raw.slice(0, maxChars);
+        }
 
-        const prompt = `Eres un profesor universitario experto en flashcards pedagógicas Anki.
-Genera exactamente ${count} flashcards en formato JSON a partir del material de estudio.
+        const textForGemini = extractKeyUnits(combinedText, 5000);
 
-REGLAS:
-1. Preguntas VARIADAS y DIRECTAS — nunca repitas la misma plantilla.
-2. Respuestas CONCISAS pero completas.
-3. Basa cada flashcard en conceptos concretos del material (definiciones, causas, procesos, aplicaciones).
+        // Prompt ultra-compacto: instrucciones mínimas + texto pre-filtrado
+        const prompt = `Genera ${count} flashcards JSON sobre el material dado.
+Estilo: ${style}. Nivel: ${difficulty}. Idioma: ${lang}.
 ${stylePromptGuideline}
-- Estilo seleccionado: ${style}
+Reglas: preguntas VARIADAS y DIRECTAS, respuestas CONCISAS.
+JSON: {"cards":[{"question":"...","answer":"...","topic":"${defaultTopic}","tags":["tema"]}]}
 
-MATERIAL DE ESTUDIO:
-${textForGemini}
-
-RESPONDE ESTRICTAMENTE CON UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
-{
-  "cards": [
-    {
-      "question": "Texto de la pregunta o reto según el estilo",
-      "answer": "Respuesta fundamentada según el estilo",
-      "topic": "${defaultTopic}",
-      "tags": ["concepto", "clave"]
-    }
-  ]
-}`;
+MATERIAL:
+${textForGemini}`;
 
         try {
           const vercelRes = await fetch('/api/generate', {

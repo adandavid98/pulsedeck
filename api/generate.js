@@ -43,8 +43,8 @@ export default async function handler(req, res) {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               response_mime_type: 'application/json',
-              temperature: 0.4,
-              maxOutputTokens: 4096
+              temperature: 0.2,       // Más determinista = respuesta más rápida y predecible
+              maxOutputTokens: 2048   // Suficiente para 15 flashcards; limita la salida innecesaria
             }
           }),
           signal: controller.signal
