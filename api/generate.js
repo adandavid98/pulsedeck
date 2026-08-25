@@ -25,12 +25,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt es requerido' });
   }
 
-  // Modelos con fallback automático en caso de alta demanda o saturación
+  // Solo modelos Gemini 3.7 Flash y 3.6 Flash
   const modelsToTry = [
     'gemini-3.7-flash',
-    'gemini-3.6-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    'gemini-3.6-flash'
   ];
   let lastError = null;
 
