@@ -27,7 +27,13 @@
   
   <!-- PDF.js para lectura de PDFs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+  <script>
+    try {
+      if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+    } catch(e) { console.warn('PDF.js worker init', e); }
+  </script>
 
   <!-- jsPDF para descarga directa -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -789,18 +795,21 @@
 
         try {
           if (isPdf) {
+            if (typeof pdfjsLib === 'undefined') {
+              throw new Error('PDF.js no se ha cargado en el navegador');
+            }
             const buffer = await file.arrayBuffer();
             const uint8Data = new Uint8Array(buffer);
             
             const extractPdfPromise = (async () => {
               const loadingTask = pdfjsLib.getDocument({
                 data: uint8Data,
-                cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-                cMapPacked: true
+                isEvalSupported: false,
+                useSystemFonts: true
               });
               const pdf = await loadingTask.promise;
               let fullText = '';
-              const maxP = Math.min(pdf.numPages, 40);
+              const maxP = Math.min(pdf.numPages, 30);
               for (let p = 1; p <= maxP; p++) {
                 try {
                   const page = await pdf.getPage(p);
@@ -809,6 +818,9 @@
                 } catch (pe) {
                   console.warn(`Error leyendo página ${p}`, pe);
                 }
+                // Ceder el control al navegador para mantener la UI 100% fluida
+                await new Promise(r => setTimeout(r, 10));
+                if (fullText.length > 30000) break;
               }
               return { text: fullText, pages: pdf.numPages };
             })();
@@ -819,12 +831,12 @@
 
             const result = await Promise.race([extractPdfPromise, timeoutPromise]);
             item.text = cleanExtractedText(result.text) || result.text.trim();
-            item.status = 'listo';
+            item.status = item.text.length > 10 ? 'listo' : 'error';
             item.size_label = `${result.pages} pág · ${Math.round((item.text.length || 1000)/1000)}k car.`;
           } else {
             const txt = await file.text();
             item.text = cleanExtractedText(txt) || txt.trim();
-            item.status = 'listo';
+            item.status = item.text.length > 5 ? 'listo' : 'error';
             item.size_label = `${Math.round((item.text.length || 1000)/1000)}k car.`;
           }
         } catch (e) {
@@ -907,7 +919,7 @@
       const heroBadge = document.getElementById('sources-badge');
       const generateBtn = document.getElementById('btn-generate-main');
       const ready = materials.filter(m => m.status === 'listo').length;
-      readyCount.textContent = `${ready} / ${materials.length}`;
+      if (readyCount) readyCount.textContent = `${ready} / ${materials.length}`;
 
       if (materials.length === 0) {
         container.innerHTML = `
@@ -916,10 +928,12 @@
             <p class="text-xs text-zinc-500">Sin material cargado. Arrastra un PDF o pega apuntes para comenzar.</p>
           </div>
         `;
-        sourcesText.textContent = "Adjunta material primero";
-        heroBadge.textContent = "100% Seguro y Privado";
-        generateBtn.disabled = true;
-        generateBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-500 cursor-not-allowed transition-all";
+        if (sourcesText) sourcesText.textContent = "Adjunta material primero";
+        if (heroBadge) heroBadge.textContent = "100% Seguro y Privado";
+        if (generateBtn) {
+          generateBtn.disabled = true;
+          generateBtn.className = "flex items-center gap-2 rounded-lg bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-500 cursor-not-allowed transition-all";
+        }
       } else {
         container.innerHTML = `
           <ul class="flex flex-col gap-2">
@@ -935,9 +949,12 @@
                   </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                  <span class="rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 text-[10px] font-semibold">
-                    Listo
-                  </span>
+                  ${m.status === 'procesando' 
+                    ? `<span class="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 text-[10px] font-semibold animate-pulse">Leyendo...</span>`
+                    : m.status === 'error'
+                    ? `<span class="rounded-full bg-red-500/10 border border-red-500/20 text-red-400 px-2 py-0.5 text-[10px] font-semibold">Error al leer</span>`
+                    : `<span class="rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 text-[10px] font-semibold">Listo</span>`
+                  }
                   <button onclick="removeMaterial('${m.id}')" class="rounded-md p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors cursor-pointer">
                     <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                   </button>
@@ -946,12 +963,16 @@
             `).join('')}
           </ul>
         `;
-        sourcesText.textContent = `${ready} fuentes listadas`;
-        heroBadge.textContent = `${ready} fuentes en memoria local`;
-        generateBtn.disabled = false;
-        generateBtn.className = "flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer";
+        if (sourcesText) sourcesText.textContent = `${ready} fuentes listadas`;
+        if (heroBadge) heroBadge.textContent = `${ready} fuentes en memoria local`;
+        if (generateBtn) {
+          generateBtn.disabled = ready === 0;
+          generateBtn.className = ready > 0 
+            ? "flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+            : "flex items-center gap-2 rounded-lg bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-500 cursor-not-allowed transition-all";
+        }
       }
-      lucide.createIcons();
+      try { if (window.lucide) lucide.createIcons(); } catch(e) {}
     }
 
     // ==================== MOTOR LOCAL INTELIGENTE (NLP DE ALTA COHERENCIA) ====================
