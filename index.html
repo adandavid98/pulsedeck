@@ -596,8 +596,6 @@
         .replace(/\[FUENTE:[^\]]*\]/gi, '')
         // Eliminar nombres de archivo con extensiones (ej. mi_archivo_1.pdf)
         .replace(/\b[\w\-]+(?:_[\w\-]+)*\.(pdf|docx|txt|html|png|jpg)\b/gi, '')
-        // Eliminar encabezados institucionales, de proyecto o universidad
-        .replace(/\b(UNIVERSIDAD|FACULTAD|CARRERA|DEPARTAMENTO|ASIGNATURA|PROYECTO INTEGRADOR|CASO SIMULADO|SYLLABUS|PROFESOR|DOCENTE|MATR[ÍI]CULA|ESTUDIANTE|UTESA)[\s\S]{0,120}?(?=(\.\s|\n\n|\n[A-Z]))/gi, '')
         // Eliminar marcadores de página (Página 1, pág 4, pdf] Página 1, etc.)
         .replace(/\b(pdf\]\s*)?(p[áa]g(?:ina)?|pag)\.?\s*\d+(\s*(de|\/)\s*\d+)?\b/gi, '')
         .replace(/\b(pdf\]|\[pdf\])\b/gi, '')
@@ -612,6 +610,29 @@
         .replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\s+([áÁ])\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1á$3')
         .replace(/\s{2,}/g, ' ')
         .trim();
+    }
+
+    // Extracción inteligente de unidades clave para reducir tokens enviados a IA
+    function extractKeyUnits(raw, maxChars) {
+      if (!raw) return '';
+      const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 15);
+      const units = [];
+      const noise = /^(p[aá]g|p\.|figura|tabla|secci[oó]n|cap[ií]tulo|fuente|\d+\s*$|www\.|http)/i;
+      for (const line of lines) {
+        if (noise.test(line)) continue;
+        const score =
+          (line.includes(':') ? 3 : 0) +
+          (/se define|consiste en|tiene como|sirve para|permite|genera|reduce|mejora|establece/i.test(line) ? 2 : 0) +
+          (line.length > 60 && line.length < 300 ? 1 : 0);
+        units.push({ text: line, score });
+      }
+      units.sort((a, b) => b.score - a.score);
+      let result = '';
+      for (const u of units) {
+        if (result.length + u.text.length + 2 > maxChars) break;
+        result += u.text + '\n';
+      }
+      return result.trim() || raw.slice(0, maxChars);
     }
 
     // PERSISTENCIA LOCAL STORAGE
@@ -714,7 +735,7 @@
       lucide.createIcons();
     }
 
-    // MANEJO DE ARCHIVOS PDF
+    // MANEJO DE ARCHIVOS PDF Y TEXTO
     function initDropzone() {
       const drop = document.getElementById('dropzone');
       const input = document.getElementById('pdf-input-file');
@@ -724,21 +745,32 @@
       drop.addEventListener('drop', (e) => {
         e.preventDefault();
         drop.classList.remove('border-indigo-500');
-        handleFiles(e.dataTransfer.files);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleFiles(e.dataTransfer.files);
+        }
       });
-      input.addEventListener('change', (e) => handleFiles(e.target.files));
+      input.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          handleFiles(e.target.files);
+        }
+        input.value = ''; // Reset para permitir subir el mismo archivo
+      });
     }
 
     async function handleFiles(files) {
       for (const file of files) {
-        if (!file.name.endsWith('.pdf')) continue;
+        const lowerName = file.name.toLowerCase();
+        const isPdf = lowerName.endsWith('.pdf');
+        const isTxt = lowerName.endsWith('.txt') || lowerName.endsWith('.md');
+        if (!isPdf && !isTxt) continue;
+
         const id = 'mat-' + Math.random().toString(36).substr(2, 9);
         const item = {
           id,
           name: file.name,
-          kind: 'pdf',
+          kind: isPdf ? 'pdf' : 'text',
           size_label: `${Math.round(file.size / 1024)} KB`,
-          topic: file.name.replace('.pdf', ''),
+          topic: file.name.replace(/\.[^/.]+$/, ''),
           status: 'procesando',
           text: ''
         };
@@ -746,19 +778,27 @@
         renderMaterials();
 
         try {
-          const buffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-          let fullText = '';
-          const maxP = Math.min(pdf.numPages, 50);
-          for (let p = 1; p <= maxP; p++) {
-            const page = await pdf.getPage(p);
-            const content = await page.getTextContent();
-            fullText += content.items.map(i => i.str).join(' ') + '\n';
+          if (isPdf) {
+            const buffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+            let fullText = '';
+            const maxP = Math.min(pdf.numPages, 50);
+            for (let p = 1; p <= maxP; p++) {
+              const page = await pdf.getPage(p);
+              const content = await page.getTextContent();
+              fullText += content.items.map(i => i.str).join(' ') + '\n';
+            }
+            item.text = cleanExtractedText(fullText) || fullText.trim();
+            item.status = 'listo';
+            item.size_label = `${pdf.numPages} pág · ${Math.round((item.text.length || 1000)/1000)}k car.`;
+          } else {
+            const txt = await file.text();
+            item.text = cleanExtractedText(txt) || txt.trim();
+            item.status = 'listo';
+            item.size_label = `${Math.round((item.text.length || 1000)/1000)}k car.`;
           }
-          item.text = cleanExtractedText(fullText);
-          item.status = 'listo';
-          item.size_label = `${pdf.numPages} pág · ${Math.round(fullText.length/1000)}k car.`;
         } catch (e) {
+          console.error('Error al procesar archivo:', e);
           item.status = 'error';
         }
         saveToStorage();
@@ -1252,33 +1292,7 @@
 - 'answer': Respuesta concisa, precisa y completa.`;
         }
 
-        // === OPTIMIZACIÓN DE TOKENS: Pre-extracción inteligente ===
-        // En lugar de enviar texto crudo al modelo, extraemos solo las unidades
-        // más informativas del PDF (las que contienen conceptos reales).
-        // Esto reduce el payload de ~12,000 chars a ~4,000-5,000 chars (~70% menos tokens).
-        function extractKeyUnits(raw, maxChars) {
-          const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 15);
-          const units = [];
-          const noise = /^(p[aá]g|p\.|figura|tabla|secci[oó]n|cap[ií]tulo|fuente|\d+\s*$|www\.|http)/i;
-          for (const line of lines) {
-            if (noise.test(line)) continue;
-            // Priorizar líneas con ":", palabras clave de definición o longitud informativa
-            const score =
-              (line.includes(':') ? 3 : 0) +
-              (/se define|consiste en|tiene como|sirve para|permite|genera|reduce|mejora|establece/i.test(line) ? 2 : 0) +
-              (line.length > 60 && line.length < 300 ? 1 : 0);
-            units.push({ text: line, score });
-          }
-          // Ordenar por relevancia, luego tomar suficientes para llenar maxChars
-          units.sort((a, b) => b.score - a.score);
-          let result = '';
-          for (const u of units) {
-            if (result.length + u.text.length + 2 > maxChars) break;
-            result += u.text + '\n';
-          }
-          return result.trim() || raw.slice(0, maxChars);
-        }
-
+        // Pre-extracción inteligente para reducir tokens y responder en <5s
         const textForGemini = extractKeyUnits(combinedText, 5000);
 
         // Prompt ultra-compacto: instrucciones mínimas + texto pre-filtrado
