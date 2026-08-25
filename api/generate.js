@@ -1,3 +1,46 @@
+// Parser inteligente y auto-reparador de JSON para respuestas de LLMs
+function parseCardsFromAIResponse(rawText) {
+  if (!rawText || typeof rawText !== 'string') return null;
+  let cleaned = rawText.trim();
+  if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+  else if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+  if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
+  cleaned = cleaned.trim();
+
+  // 1. Intento de parseo directo
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed.cards && Array.isArray(parsed.cards) && parsed.cards.length > 0) return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) return { cards: parsed };
+  } catch (e) {}
+
+  // 2. Auto-reparación si el JSON fue cortado antes del cierre
+  try {
+    const lastObjIdx = cleaned.lastIndexOf('}');
+    if (lastObjIdx !== -1) {
+      const repaired = cleaned.slice(0, lastObjIdx + 1) + ']}';
+      const parsed = JSON.parse(repaired);
+      if (parsed.cards && Array.isArray(parsed.cards) && parsed.cards.length > 0) return parsed;
+    }
+  } catch (e) {}
+
+  // 3. Extracción robusta de objetos individuales { question, answer }
+  try {
+    const cardMatches = [...cleaned.matchAll(/\{\s*"question"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"answer"\s*:\s*"((?:[^"\\]|\\.)*)"/gs)];
+    if (cardMatches.length > 0) {
+      const cards = cardMatches.map(m => ({
+        question: m[1].replace(/\\"/g, '"').replace(/\\n/g, '\n'),
+        answer: m[2].replace(/\\"/g, '"').replace(/\\n/g, '\n'),
+        topic: 'Estudio',
+        tags: ['flashcard']
+      }));
+      return { cards };
+    }
+  } catch (e) {}
+
+  return null;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,7 +58,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, engine = 'groq' } = req.body || {};
+  const { prompt, engine = 'openrouter' } = req.body || {};
   if (!prompt) {
     return res.status(400).json({ error: 'Prompt es requerido' });
   }
@@ -44,7 +87,7 @@ export default async function handler(req, res) {
     for (const model of openRouterModels) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
 
         const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -68,7 +111,7 @@ export default async function handler(req, res) {
             ],
             response_format: { type: 'json_object' },
             temperature: 0.2,
-            max_tokens: 2048
+            max_tokens: 4096
           }),
           signal: controller.signal
         });
@@ -78,10 +121,8 @@ export default async function handler(req, res) {
         if (openRouterRes.ok) {
           const data = await openRouterRes.json();
           const rawText = data.choices?.[0]?.message?.content;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            return res.status(200).json(parsed);
-          }
+          const parsed = parseCardsFromAIResponse(rawText);
+          if (parsed) return res.status(200).json(parsed);
         } else {
           const errData = await openRouterRes.json().catch(() => ({}));
           lastOpenRouterError = errData.error?.message || `OpenRouter (${model}) respondió con código ${openRouterRes.status}`;
@@ -103,11 +144,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'GROQ_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
     }
 
-    // Lista de modelos activos de Groq con auto-detección dinámica
     let groqModels = ['gpt-oss-120b', 'gpt-oss-20b', 'qwen3.6-27b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
     try {
       const modelsListRes = await fetch('https://api.groq.com/openai/v1/models', {
-        headers: { 'Authorization': `Bearer ${groqKey}` }
+        headers: { 'Authorization': `Bearer ${groqKey.trim()}` }
       });
       if (modelsListRes.ok) {
         const modelsData = await modelsListRes.json();
@@ -121,20 +161,20 @@ export default async function handler(req, res) {
         }
       }
     } catch (e) {
-      console.warn('Auto-detección de modelos Groq omitida, usando lista predeterminada', e);
+      console.warn('Auto-detección Groq omitida');
     }
     let lastGroqError = null;
 
     for (const model of groqModels) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
 
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${groqKey}`
+            'Authorization': `Bearer ${groqKey.trim()}`
           },
           body: JSON.stringify({
             model: model,
@@ -150,7 +190,7 @@ export default async function handler(req, res) {
             ],
             response_format: { type: 'json_object' },
             temperature: 0.2,
-            max_tokens: 2048
+            max_tokens: 4096
           }),
           signal: controller.signal
         });
@@ -160,10 +200,8 @@ export default async function handler(req, res) {
         if (groqRes.ok) {
           const data = await groqRes.json();
           const rawText = data.choices?.[0]?.message?.content;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            return res.status(200).json(parsed);
-          }
+          const parsed = parseCardsFromAIResponse(rawText);
+          if (parsed) return res.status(200).json(parsed);
         } else {
           const errData = await groqRes.json().catch(() => ({}));
           lastGroqError = errData.error?.message || `Groq API (${model}) respondió con código ${groqRes.status}`;
@@ -179,7 +217,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: lastGroqError || 'Error al comunicarse con Groq API' });
   }
 
-  // ==================== MOTOR 2: GOOGLE GEMINI FLASH (3.7 / 3.6) ====================
+  // ==================== MOTOR 3: GOOGLE GEMINI FLASH (3.7 / 3.6) ====================
   if (!geminiKey) {
     return res.status(500).json({ error: 'GOOGLE_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
   }
@@ -190,10 +228,10 @@ export default async function handler(req, res) {
   for (const mod of geminiModels) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
       const googleRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${geminiKey.trim()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -202,7 +240,7 @@ export default async function handler(req, res) {
             generationConfig: {
               response_mime_type: 'application/json',
               temperature: 0.2,
-              maxOutputTokens: 2048
+              maxOutputTokens: 8192
             }
           }),
           signal: controller.signal
@@ -214,14 +252,12 @@ export default async function handler(req, res) {
       if (googleRes.ok) {
         const data = await googleRes.json();
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(rawText);
-          return res.status(200).json(parsed);
-        }
+        const parsed = parseCardsFromAIResponse(rawText);
+        if (parsed) return res.status(200).json(parsed);
       } else {
         const errData = await googleRes.json().catch(() => ({}));
         lastGeminiError = errData.error?.message || `Google API (${mod}) respondió con código ${googleRes.status}`;
-        console.warn(`Gemini modelo ${mod} falló, intentando siguiente...`);
+        console.warn(`Gemini modelo ${mod} falló (${googleRes.status}), intentando siguiente modelo...`);
       }
     } catch (error) {
       lastGeminiError = error.name === 'AbortError'
