@@ -29,7 +29,26 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'GROQ_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
     }
 
-    const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
+    // Lista de modelos activos de Groq con auto-detección dinámica
+    let groqModels = ['gpt-oss-120b', 'gpt-oss-20b', 'qwen3.6-27b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+    try {
+      const modelsListRes = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { 'Authorization': `Bearer ${groqKey}` }
+      });
+      if (modelsListRes.ok) {
+        const modelsData = await modelsListRes.json();
+        const activeIds = (modelsData.data || []).map(m => m.id);
+        const filtered = groqModels.filter(m => activeIds.includes(m));
+        if (filtered.length > 0) {
+          groqModels = filtered;
+        } else if (activeIds.length > 0) {
+          const chatModels = activeIds.filter(id => !id.includes('whisper') && !id.includes('vision') && !id.includes('guard'));
+          if (chatModels.length > 0) groqModels = chatModels;
+        }
+      }
+    } catch (e) {
+      console.warn('Auto-detección de modelos Groq omitida, usando lista predeterminada', e);
+    }
     let lastGroqError = null;
 
     for (const model of groqModels) {
