@@ -653,24 +653,32 @@
         const savedMats = localStorage.getItem('pulsedeck_materials');
 
         if (savedCards) {
-          flashcards = JSON.parse(savedCards);
-          if (savedStatuses) cardStatuses = JSON.parse(savedStatuses);
+          flashcards = JSON.parse(savedCards) || [];
+          if (savedStatuses) cardStatuses = JSON.parse(savedStatuses) || {};
           renderDeckGrid();
-          document.getElementById('nav-study-count').textContent = flashcards.length;
-          document.getElementById('nav-study-count').classList.remove('hidden');
+          const badge = document.getElementById('nav-study-count');
+          if (badge) {
+            badge.textContent = flashcards.length;
+            if (flashcards.length > 0) badge.classList.remove('hidden');
+          }
         }
         if (savedMats) {
-          materials = JSON.parse(savedMats);
+          materials = JSON.parse(savedMats) || [];
+          materials.forEach(m => {
+            if (m.status === 'procesando') {
+              m.status = (m.text && m.text.length > 20) ? 'listo' : 'error';
+            }
+          });
           renderMaterials();
         }
       } catch (e) { console.warn('LocalStorage read error', e); }
     }
 
-    // INICIALIZACION
+    // INICIALIZACION SEGURA
     document.addEventListener('DOMContentLoaded', () => {
-      loadFromStorage();
-      lucide.createIcons();
-      initDropzone();
+      try { loadFromStorage(); } catch (e) { console.warn(e); }
+      try { if (window.lucide) lucide.createIcons(); } catch (e) { console.warn(e); }
+      try { initDropzone(); } catch (e) { console.warn(e); }
     });
 
     function switchNav(tab) {
@@ -691,7 +699,7 @@
         genBtn.className = "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors text-sm font-medium cursor-pointer";
         renderStudySession();
       }
-      lucide.createIcons();
+      try { if (window.lucide) lucide.createIcons(); } catch (e) {}
     }
 
     function setSourceTab(mode) {
@@ -712,7 +720,7 @@
         textInput.classList.remove('hidden');
         linkInput.classList.add('hidden');
       }
-      lucide.createIcons();
+      try { if (window.lucide) lucide.createIcons(); } catch (e) {}
     }
 
     function toggleDef() {
@@ -722,7 +730,7 @@
         ? "flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 cursor-pointer"
         : "flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors cursor-pointer";
       btn.innerHTML = `<i data-lucide="${incDefinitions ? 'check' : 'plus'}" class="h-3.5 w-3.5 ${incDefinitions ? 'text-emerald-400' : 'text-zinc-500'}"></i><span>Definiciones precisas</span>`;
-      lucide.createIcons();
+      try { if (window.lucide) lucide.createIcons(); } catch (e) {}
     }
 
     function toggleEx() {
@@ -732,20 +740,21 @@
         ? "flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 cursor-pointer"
         : "flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-400 hover:border-zinc-700 transition-colors cursor-pointer";
       btn.innerHTML = `<i data-lucide="${incExamples ? 'check' : 'plus'}" class="h-3.5 w-3.5 ${incExamples ? 'text-emerald-400' : 'text-zinc-500'}"></i><span>Ejemplos prácticos</span>`;
-      lucide.createIcons();
+      try { if (window.lucide) lucide.createIcons(); } catch (e) {}
     }
 
     // MANEJO DE ARCHIVOS PDF Y TEXTO
     function initDropzone() {
       const drop = document.getElementById('dropzone');
       const input = document.getElementById('pdf-input-file');
+      if (!drop || !input) return;
 
       drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('border-indigo-500'); });
       drop.addEventListener('dragleave', () => drop.classList.remove('border-indigo-500'));
       drop.addEventListener('drop', (e) => {
         e.preventDefault();
         drop.classList.remove('border-indigo-500');
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
           handleFiles(e.dataTransfer.files);
         }
       });
@@ -753,11 +762,12 @@
         if (e.target.files && e.target.files.length > 0) {
           handleFiles(e.target.files);
         }
-        input.value = ''; // Reset para permitir subir el mismo archivo
+        input.value = '';
       });
     }
 
     async function handleFiles(files) {
+      if (!files || files.length === 0) return;
       for (const file of files) {
         const lowerName = file.name.toLowerCase();
         const isPdf = lowerName.endsWith('.pdf');
@@ -780,17 +790,37 @@
         try {
           if (isPdf) {
             const buffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-            let fullText = '';
-            const maxP = Math.min(pdf.numPages, 50);
-            for (let p = 1; p <= maxP; p++) {
-              const page = await pdf.getPage(p);
-              const content = await page.getTextContent();
-              fullText += content.items.map(i => i.str).join(' ') + '\n';
-            }
-            item.text = cleanExtractedText(fullText) || fullText.trim();
+            const uint8Data = new Uint8Array(buffer);
+            
+            const extractPdfPromise = (async () => {
+              const loadingTask = pdfjsLib.getDocument({
+                data: uint8Data,
+                cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+                cMapPacked: true
+              });
+              const pdf = await loadingTask.promise;
+              let fullText = '';
+              const maxP = Math.min(pdf.numPages, 40);
+              for (let p = 1; p <= maxP; p++) {
+                try {
+                  const page = await pdf.getPage(p);
+                  const content = await page.getTextContent();
+                  fullText += content.items.map(i => i.str).join(' ') + '\n';
+                } catch (pe) {
+                  console.warn(`Error leyendo página ${p}`, pe);
+                }
+              }
+              return { text: fullText, pages: pdf.numPages };
+            })();
+
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Tiempo de lectura de PDF agotado')), 15000)
+            );
+
+            const result = await Promise.race([extractPdfPromise, timeoutPromise]);
+            item.text = cleanExtractedText(result.text) || result.text.trim();
             item.status = 'listo';
-            item.size_label = `${pdf.numPages} pág · ${Math.round((item.text.length || 1000)/1000)}k car.`;
+            item.size_label = `${result.pages} pág · ${Math.round((item.text.length || 1000)/1000)}k car.`;
           } else {
             const txt = await file.text();
             item.text = cleanExtractedText(txt) || txt.trim();
@@ -800,6 +830,7 @@
         } catch (e) {
           console.error('Error al procesar archivo:', e);
           item.status = 'error';
+          item.size_label = 'Error al leer';
         }
         saveToStorage();
         renderMaterials();
