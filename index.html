@@ -1252,21 +1252,21 @@
 - 'answer': Respuesta concisa, precisa y completa.`;
         }
 
-        const prompt = `Actúa como un profesor universitario y pedagogo experto en técnicas de aprendizaje activo y tarjetas Anki.
-Tu misión es analizar exhaustivamente el siguiente material de estudio y generar exactamente ${count} flashcards de alta calidad pedagógica.
+        // Limitar texto enviado para evitar timeouts (max ~12000 chars = ~3000 tokens, respuesta en <15s)
+        const textForGemini = combinedText.slice(0, 12000);
 
-REGLAS OBLIGATORIAS:
-1. PREGUNTAS CLARAS, VARIADAS Y DIRECTAS: Cada tarjeta debe formular una pregunta o reto pedagógico concreto según el estilo solicitado. NUNCA comiences todas las preguntas con la misma frase repetitiva (ej: no empieces todas con '¿Cuál es la definición o característica de...?'). Varía la redacción indagando por objetivos, funcionamiento, ventajas, diferencias, causas-efectos y aplicaciones.
-2. NUNCA hagas preguntas genéricas vacías como "Analiza la siguiente idea:" o "Explica el siguiente punto:".
-3. RESPUESTAS CONCISAS Y COMPLETAS: La respuesta debe responder exactamente lo que se pregunta, explicando el concepto con claridad sin texto superfluo.
-4. COHERENCIA: Extrae definiciones, causas-efectos, procesos secuenciales, casos y aplicaciones prácticas.
+        const prompt = `Eres un profesor universitario experto en flashcards pedagógicas Anki.
+Genera exactamente ${count} flashcards en formato JSON a partir del material de estudio.
+
+REGLAS:
+1. Preguntas VARIADAS y DIRECTAS — nunca repitas la misma plantilla.
+2. Respuestas CONCISAS pero completas.
+3. Basa cada flashcard en conceptos concretos del material (definiciones, causas, procesos, aplicaciones).
 ${stylePromptGuideline}
-- Nivel: ${difficulty}
-- Idioma: ${lang}
 - Estilo seleccionado: ${style}
 
 MATERIAL DE ESTUDIO:
-${combinedText.slice(0, 30000)}
+${textForGemini}
 
 RESPONDE ESTRICTAMENTE CON UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
 {

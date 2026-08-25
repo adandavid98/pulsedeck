@@ -25,46 +25,50 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt es requerido' });
   }
 
-  // Modelos Gemini (Priorizando Gemini 3.7 Flash y 3.6 Flash)
-  const modelsToTry = [
-    'gemini-3.7-flash',
-    'gemini-3.6-flash',
-    'gemini-flash-latest',
-    'gemini-1.5-flash'
-  ];
+  // Intentar primero con Gemini 3.7 Flash, luego 3.6 Flash como respaldo
+  const modelsToTry = ['gemini-3.7-flash', 'gemini-3.6-flash'];
   let lastError = null;
 
   for (const mod of modelsToTry) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 50000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-      const googleRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { 
-            response_mime_type: "application/json",
-            temperature: 0.3
-          }
-        }),
-        signal: controller.signal
-      });
+      const googleRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              response_mime_type: 'application/json',
+              temperature: 0.4,
+              maxOutputTokens: 4096
+            }
+          }),
+          signal: controller.signal
+        }
+      );
 
       clearTimeout(timeoutId);
 
       if (googleRes.ok) {
         const data = await googleRes.json();
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) throw new Error('Gemini devolvió una respuesta vacía');
         const parsed = JSON.parse(rawText);
         return res.status(200).json(parsed);
       } else {
         const errData = await googleRes.json().catch(() => ({}));
         lastError = errData.error?.message || `Google API (${mod}) respondió con código ${googleRes.status}`;
+        // Si el error es 404 (modelo no disponible), intentar con el siguiente
+        if (googleRes.status !== 404) break;
       }
     } catch (error) {
-      lastError = error.name === 'AbortError' ? `Tiempo de espera agotado al consultar modelo ${mod}` : error.message;
+      lastError = error.name === 'AbortError'
+        ? `Gemini ${mod} tardó demasiado. Intenta de nuevo.`
+        : error.message;
     }
   }
 
