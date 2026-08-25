@@ -38,6 +38,9 @@ export default async function handler(req, res) {
     ];
     let lastOpenRouterError = null;
 
+    const cleanedOpenRouterKey = openRouterKey.trim();
+    const authHeader = cleanedOpenRouterKey.startsWith('Bearer ') ? cleanedOpenRouterKey : `Bearer ${cleanedOpenRouterKey}`;
+
     for (const model of openRouterModels) {
       try {
         const controller = new AbortController();
@@ -47,7 +50,7 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openRouterKey}`,
+            'Authorization': authHeader,
             'HTTP-Referer': 'https://pulsedeck-six.vercel.app',
             'X-Title': 'PulseDeck Flashcards AI'
           },
