@@ -284,8 +284,9 @@
             </label>
             <div class="relative">
               <select id="pref-engine" class="w-full appearance-none rounded-lg border border-indigo-500/40 bg-zinc-950 px-3 py-2 text-xs font-medium text-indigo-200 outline-none focus:border-indigo-400 cursor-pointer">
-                <option value="gemini" selected>✨ Gemini Flash IA (Recomendado)</option>
-                <option value="local">⚡ Motor Local Autónomo</option>
+                <option value="groq" selected>⚡ Groq AI (LLaMA 3.3 70B · 500 tok/s)</option>
+                <option value="gemini">✨ Google Gemini Flash (3.7 / 3.6)</option>
+                <option value="local">💻 Motor Local Inteligente (Sin API)</option>
               </select>
               <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-indigo-400"></i>
             </div>
@@ -1292,12 +1293,15 @@
       const combinedText = readyMaterials.map(m => cleanExtractedText(m.text)).filter(Boolean).join('\n\n');
       let cardsResult = null;
       let usedLocal = false;
-      let geminiErrorReason = null;
+      let aiErrorReason = null;
 
-      // SI ELIGE GEMINI IA
-      if (engineChoice === 'gemini') {
-        btnText.innerHTML = `<i data-lucide="sparkles" class="h-4 w-4 animate-spin inline mr-1"></i> Consultando Gemini Flash IA...`;
-        lucide.createIcons();
+      // SI ELIGE GROQ O GEMINI IA
+      if (engineChoice === 'groq' || engineChoice === 'gemini') {
+        const isGroq = engineChoice === 'groq';
+        btnText.innerHTML = isGroq
+          ? `<i data-lucide="zap" class="h-4 w-4 animate-spin inline mr-1 text-amber-400"></i> Generando con Groq LLaMA 3.3...`
+          : `<i data-lucide="sparkles" class="h-4 w-4 animate-spin inline mr-1"></i> Consultando Gemini Flash IA...`;
+        try { if (window.lucide) lucide.createIcons(); } catch(e) {}
 
         let stylePromptGuideline = "";
         if (style === "Verdadero / Falso") {
@@ -1345,23 +1349,23 @@
         }
 
         // Pre-extracción inteligente para reducir tokens y responder en <5s
-        const textForGemini = extractKeyUnits(combinedText, 5000);
+        const textForAI = extractKeyUnits(combinedText, 5000);
 
         // Prompt ultra-compacto: instrucciones mínimas + texto pre-filtrado
-        const prompt = `Genera ${count} flashcards JSON sobre el material dado.
+        const prompt = `Genera exactamente ${count} flashcards pedagógicas en formato JSON a partir del material dado.
 Estilo: ${style}. Nivel: ${difficulty}. Idioma: ${lang}.
 ${stylePromptGuideline}
-Reglas: preguntas VARIADAS y DIRECTAS, respuestas CONCISAS.
-JSON: {"cards":[{"question":"...","answer":"...","topic":"${defaultTopic}","tags":["tema"]}]}
+Reglas: preguntas VARIADAS y DIRECTAS, respuestas CONCISAS y precisas.
+Responde estrictamente con este esquema JSON: {"cards":[{"question":"...","answer":"...","topic":"${defaultTopic}","tags":["tema"]}]}
 
 MATERIAL:
-${textForGemini}`;
+${textForAI}`;
 
         try {
           const vercelRes = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, count, topic: defaultTopic })
+            body: JSON.stringify({ prompt, count, topic: defaultTopic, engine: engineChoice })
           });
 
           if (vercelRes.ok) {
@@ -1377,24 +1381,24 @@ ${textForGemini}`;
             }
           } else {
             const errData = await vercelRes.json().catch(() => ({}));
-            geminiErrorReason = errData.error || `Servidor respondió con código ${vercelRes.status}`;
+            aiErrorReason = errData.error || `Servidor respondió con código ${vercelRes.status}`;
           }
         } catch (e) {
-          geminiErrorReason = e.message;
+          aiErrorReason = e.message;
         }
       }
 
-      // FALLBACK LOCAL SI GEMINI FALLA O SI EL USUARIO ELIGIÓ LOCAL DIRECTAMENTE
+      // FALLBACK LOCAL SI IA FALLA O SI EL USUARIO ELIGIÓ LOCAL DIRECTAMENTE
       if (!cardsResult || cardsResult.length === 0) {
         usedLocal = true;
         btnText.textContent = "Generando con Motor Local Inteligente...";
         cardsResult = generateSmartLocalCards(combinedText, count, defaultTopic, difficulty, style);
         
-        if (engineChoice === 'gemini') {
+        if (engineChoice === 'groq' || engineChoice === 'gemini') {
           alertBanner.classList.remove('hidden');
           const alertDesc = document.getElementById('api-alert-desc');
-          if (geminiErrorReason) {
-            alertDesc.innerHTML = `Detalle: <b class="text-amber-100">${escapeHtml(geminiErrorReason)}</b>.<br>En tu enlace de Vercel desplegado, se ejecutará directamente con tu <b>GOOGLE_API_KEY</b>.`;
+          if (aiErrorReason) {
+            alertDesc.innerHTML = `Detalle: <b class="text-amber-100">${escapeHtml(aiErrorReason)}</b>.<br>Asegúrate de tener configurada tu clave en Vercel (<b>GROQ_API_KEY</b> o <b>GOOGLE_API_KEY</b>).`;
           }
         }
       }
@@ -1413,6 +1417,9 @@ ${textForGemini}`;
       if (usedLocal) {
         engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 flex items-center gap-1";
         engineBadge.innerHTML = `<i data-lucide="zap" class="h-3 w-3"></i><span>Motor Local Inteligente</span>`;
+      } else if (engineChoice === 'groq') {
+        engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-300 flex items-center gap-1";
+        engineBadge.innerHTML = `<i data-lucide="zap" class="h-3 w-3 text-amber-400"></i><span>⚡ Groq LLaMA 3.3 (Ultra Rápido)</span>`;
       } else {
         engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-indigo-500/10 border-indigo-500/30 text-indigo-300 flex items-center gap-1";
         engineBadge.innerHTML = `<i data-lucide="sparkles" class="h-3 w-3 text-indigo-400"></i><span>✨ Gemini Flash IA</span>`;
