@@ -284,7 +284,8 @@
             </label>
             <div class="relative">
               <select id="pref-engine" class="w-full appearance-none rounded-lg border border-indigo-500/40 bg-zinc-950 px-3 py-2 text-xs font-medium text-indigo-200 outline-none focus:border-indigo-400 cursor-pointer">
-                <option value="groq" selected>⚡ Groq AI (LLaMA 3.3 70B · 500 tok/s)</option>
+                <option value="openrouter" selected>🌐 OpenRouter (DeepSeek V3 / Multi-IA)</option>
+                <option value="groq">⚡ Groq AI (LLaMA 3.3 70B · 500 tok/s)</option>
                 <option value="gemini">✨ Google Gemini Flash (3.7 / 3.6)</option>
                 <option value="local">💻 Motor Local Inteligente (Sin API)</option>
               </select>
@@ -1295,10 +1296,13 @@
       let usedLocal = false;
       let aiErrorReason = null;
 
-      // SI ELIGE GROQ O GEMINI IA
-      if (engineChoice === 'groq' || engineChoice === 'gemini') {
+      // SI ELIGE OPENROUTER, GROQ O GEMINI IA
+      if (engineChoice === 'openrouter' || engineChoice === 'groq' || engineChoice === 'gemini') {
+        const isOpenRouter = engineChoice === 'openrouter';
         const isGroq = engineChoice === 'groq';
-        btnText.innerHTML = isGroq
+        btnText.innerHTML = isOpenRouter
+          ? `<i data-lucide="globe" class="h-4 w-4 animate-spin inline mr-1 text-cyan-400"></i> Consultando OpenRouter (DeepSeek V3)...`
+          : isGroq
           ? `<i data-lucide="zap" class="h-4 w-4 animate-spin inline mr-1 text-amber-400"></i> Generando con Groq LLaMA 3.3...`
           : `<i data-lucide="sparkles" class="h-4 w-4 animate-spin inline mr-1"></i> Consultando Gemini Flash IA...`;
         try { if (window.lucide) lucide.createIcons(); } catch(e) {}
@@ -1394,11 +1398,11 @@ ${textForAI}`;
         btnText.textContent = "Generando con Motor Local Inteligente...";
         cardsResult = generateSmartLocalCards(combinedText, count, defaultTopic, difficulty, style);
         
-        if (engineChoice === 'groq' || engineChoice === 'gemini') {
+        if (engineChoice === 'openrouter' || engineChoice === 'groq' || engineChoice === 'gemini') {
           alertBanner.classList.remove('hidden');
           const alertDesc = document.getElementById('api-alert-desc');
           if (aiErrorReason) {
-            alertDesc.innerHTML = `Detalle: <b class="text-amber-100">${escapeHtml(aiErrorReason)}</b>.<br>Asegúrate de tener configurada tu clave en Vercel (<b>GROQ_API_KEY</b> o <b>GOOGLE_API_KEY</b>).`;
+            alertDesc.innerHTML = `Detalle: <b class="text-amber-100">${escapeHtml(aiErrorReason)}</b>.<br>Asegúrate de tener configurada tu clave en Vercel (<b>OPENROUTER_API_KEY</b>, <b>GROQ_API_KEY</b> o <b>GOOGLE_API_KEY</b>).`;
           }
         }
       }
@@ -1417,6 +1421,9 @@ ${textForAI}`;
       if (usedLocal) {
         engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 flex items-center gap-1";
         engineBadge.innerHTML = `<i data-lucide="zap" class="h-3 w-3"></i><span>Motor Local Inteligente</span>`;
+      } else if (engineChoice === 'openrouter') {
+        engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-cyan-500/10 border-cyan-500/30 text-cyan-300 flex items-center gap-1";
+        engineBadge.innerHTML = `<i data-lucide="globe" class="h-3 w-3 text-cyan-400"></i><span>🌐 OpenRouter (DeepSeek V3)</span>`;
       } else if (engineChoice === 'groq') {
         engineBadge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-300 flex items-center gap-1";
         engineBadge.innerHTML = `<i data-lucide="zap" class="h-3 w-3 text-amber-400"></i><span>⚡ Groq LLaMA 3.3 (Ultra Rápido)</span>`;
