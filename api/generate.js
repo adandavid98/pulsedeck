@@ -25,14 +25,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt es requerido' });
   }
 
-  // Intentar primero con Gemini 3.7 Flash, luego 3.6 Flash como respaldo
-  const modelsToTry = ['gemini-3.7-flash', 'gemini-3.6-flash'];
+  // Modelos con fallback automático en caso de alta demanda o saturación
+  const modelsToTry = [
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
+  ];
   let lastError = null;
 
   for (const mod of modelsToTry) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
       const googleRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${apiKey}`,
@@ -43,8 +48,8 @@ export default async function handler(req, res) {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               response_mime_type: 'application/json',
-              temperature: 0.2,       // Más determinista = respuesta más rápida y predecible
-              maxOutputTokens: 2048   // Suficiente para 15 flashcards; limita la salida innecesaria
+              temperature: 0.2,
+              maxOutputTokens: 2048
             }
           }),
           signal: controller.signal
@@ -56,18 +61,18 @@ export default async function handler(req, res) {
       if (googleRes.ok) {
         const data = await googleRes.json();
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!rawText) throw new Error('Gemini devolvió una respuesta vacía');
-        const parsed = JSON.parse(rawText);
-        return res.status(200).json(parsed);
+        if (rawText) {
+          const parsed = JSON.parse(rawText);
+          return res.status(200).json(parsed);
+        }
       } else {
         const errData = await googleRes.json().catch(() => ({}));
         lastError = errData.error?.message || `Google API (${mod}) respondió con código ${googleRes.status}`;
-        // Si el error es 404 (modelo no disponible), intentar con el siguiente
-        if (googleRes.status !== 404) break;
+        console.warn(`Modelo ${mod} falló (${googleRes.status}), intentando siguiente modelo...`);
       }
     } catch (error) {
       lastError = error.name === 'AbortError'
-        ? `Gemini ${mod} tardó demasiado. Intenta de nuevo.`
+        ? `Tiempo de espera agotado en ${mod}`
         : error.message;
     }
   }
