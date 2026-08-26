@@ -144,8 +144,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'GROQ_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
     }
 
-    // Priorizamos LLaMA 3.3 70B y LLaMA 3.1 8B (este último con 20,000 TPM)
-    let groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it'];
+    // Modelos de producción vigentes y ultra-rápidos de Groq
+    let groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
     try {
       const modelsListRes = await fetch('https://api.groq.com/openai/v1/models', {
         headers: { 'Authorization': `Bearer ${groqKey.trim()}` }
@@ -153,9 +153,12 @@ export default async function handler(req, res) {
       if (modelsListRes.ok) {
         const modelsData = await modelsListRes.json();
         const activeIds = (modelsData.data || []).map(m => m.id);
-        const filtered = groqModels.filter(m => activeIds.includes(m));
-        if (filtered.length > 0) {
-          groqModels = filtered;
+        const valid = groqModels.filter(m => activeIds.includes(m));
+        if (valid.length > 0) {
+          groqModels = valid;
+        } else {
+          const fallbackLlamas = activeIds.filter(id => (id.includes('llama-3') || id.includes('mixtral')) && !id.includes('vision') && !id.includes('guard'));
+          if (fallbackLlamas.length > 0) groqModels = fallbackLlamas;
         }
       }
     } catch (e) {
