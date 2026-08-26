@@ -25,12 +25,12 @@
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   
-  <!-- PDF.js para lectura de PDFs -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- PDF.js para lectura de PDFs (Compatible con file://, localhost y Vercel) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script>
     try {
       if (window.pdfjsLib) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
       }
     } catch(e) { console.warn('PDF.js worker init', e); }
   </script>
@@ -189,13 +189,13 @@
               </button>
             </div>
             <div id="dropzone" class="mt-3.5 w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-800 hover:border-indigo-500/50 bg-zinc-950/40 hover:bg-zinc-950/80 transition-all duration-200 p-6 text-center relative">
-              <input type="file" id="pdf-input-file" accept=".pdf" multiple class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+              <input type="file" id="pdf-input-file" accept=".pdf,.txt,.md" multiple class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
               <div class="flex flex-col items-center justify-center">
                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 mb-2">
                   <i data-lucide="cloud-upload" class="h-7 w-7 text-indigo-400"></i>
                 </div>
-                <p class="text-xs font-medium text-zinc-200">Arrastra tus archivos PDF aquí o haz clic para explorar</p>
-                <p class="mt-0.5 text-[11px] text-zinc-500">Documentos PDF · procesados al instante en tu navegador</p>
+                <p class="text-xs font-medium text-zinc-200">Arrastra tus archivos PDF o notas aquí o haz clic para explorar</p>
+                <p class="mt-0.5 text-[11px] text-zinc-500">Documentos PDF, TXT · procesados al instante en tu navegador</p>
               </div>
             </div>
           </div>
@@ -346,6 +346,44 @@
               </select>
               <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"></i>
             </div>
+          </div>
+        </div>
+
+        <!-- INSTRUCCIONES ESPECÍFICAS / ENFOQUE PERSONALIZADO -->
+        <div class="mt-4 border-t border-zinc-800/80 pt-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+            <label for="input-custom-notes" class="text-[11px] font-semibold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+              <i data-lucide="target" class="h-3.5 w-3.5 text-indigo-400"></i>
+              <span>Instrucción o Enfoque Específico de los Documentos (Opcional)</span>
+            </label>
+            <button onclick="clearCustomNotes()" type="button" class="self-start sm:self-auto text-[11px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors cursor-pointer">
+              <i data-lucide="eraser" class="h-3 w-3"></i>
+              <span>Limpiar instrucción</span>
+            </button>
+          </div>
+          
+          <div class="relative">
+            <textarea id="input-custom-notes" rows="2" placeholder="Ej: Solo hacer flashcards del Tema 1 (Leyes de Newton), priorizar fórmulas clave, o ignorar la introducción histórica..." class="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950/80 px-3.5 py-2.5 text-xs font-medium text-zinc-100 placeholder-zinc-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all"></textarea>
+          </div>
+
+          <!-- CHIPS DE ACCESO RÁPIDO -->
+          <div class="mt-2 flex flex-wrap items-center gap-1.5">
+            <span class="text-[10px] text-zinc-500 font-medium mr-1">Sugerencias rápidas:</span>
+            <button type="button" onclick="setQuickNote('Solo generar flashcards del Tema / Capítulo 1')" class="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950/60 hover:bg-indigo-500/10 hover:border-indigo-500/30 px-2 py-1 text-[11px] font-medium text-zinc-400 hover:text-indigo-300 transition-colors cursor-pointer">
+              <span>🎯 Solo Tema 1</span>
+            </button>
+            <button type="button" onclick="setQuickNote('Priorizar fórmulas, ecuaciones y aplicaciones numéricas')" class="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950/60 hover:bg-indigo-500/10 hover:border-indigo-500/30 px-2 py-1 text-[11px] font-medium text-zinc-400 hover:text-indigo-300 transition-colors cursor-pointer">
+              <span>📐 Fórmulas y cálculos</span>
+            </button>
+            <button type="button" onclick="setQuickNote('Enfocarse exclusivamente en conceptos y definiciones clave')" class="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950/60 hover:bg-indigo-500/10 hover:border-indigo-500/30 px-2 py-1 text-[11px] font-medium text-zinc-400 hover:text-indigo-300 transition-colors cursor-pointer">
+              <span>📖 Solo definiciones</span>
+            </button>
+            <button type="button" onclick="setQuickNote('Crear preguntas de comparación, similitudes y diferencias')" class="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950/60 hover:bg-indigo-500/10 hover:border-indigo-500/30 px-2 py-1 text-[11px] font-medium text-zinc-400 hover:text-indigo-300 transition-colors cursor-pointer">
+              <span>⚖️ Comparativas</span>
+            </button>
+            <button type="button" onclick="setQuickNote('Generar preguntas de casos prácticos y aplicación de examen')" class="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950/60 hover:bg-indigo-500/10 hover:border-indigo-500/30 px-2 py-1 text-[11px] font-medium text-zinc-400 hover:text-indigo-300 transition-colors cursor-pointer">
+              <span>❓ Casos de examen</span>
+            </button>
           </div>
         </div>
 
@@ -651,6 +689,8 @@
         localStorage.setItem('pulsedeck_materials', JSON.stringify(materials.map(m => ({
           id: m.id, name: m.name, kind: m.kind, size_label: m.size_label, topic: m.topic, status: m.status, text: m.text.slice(0, 10000)
         }))));
+        const customNotes = document.getElementById('input-custom-notes')?.value || '';
+        localStorage.setItem('pulsedeck_custom_notes', customNotes);
       } catch (e) { console.warn('LocalStorage error', e); }
     }
 
@@ -659,6 +699,12 @@
         const savedCards = localStorage.getItem('pulsedeck_flashcards');
         const savedStatuses = localStorage.getItem('pulsedeck_card_statuses');
         const savedMats = localStorage.getItem('pulsedeck_materials');
+        const savedNotes = localStorage.getItem('pulsedeck_custom_notes');
+
+        if (savedNotes) {
+          const noteInput = document.getElementById('input-custom-notes');
+          if (noteInput) noteInput.value = savedNotes;
+        }
 
         if (savedCards) {
           flashcards = JSON.parse(savedCards) || [];
@@ -682,11 +728,39 @@
       } catch (e) { console.warn('LocalStorage read error', e); }
     }
 
+    // HELPERS PARA INSTRUCCIÓN / ENFOQUE PERSONALIZADO
+    function setQuickNote(text) {
+      const noteInput = document.getElementById('input-custom-notes');
+      if (!noteInput) return;
+      if (!noteInput.value.trim()) {
+        noteInput.value = text;
+      } else {
+        noteInput.value += '; ' + text;
+      }
+      saveToStorage();
+      noteInput.focus();
+    }
+
+    function clearCustomNotes() {
+      const noteInput = document.getElementById('input-custom-notes');
+      if (noteInput) {
+        noteInput.value = '';
+        saveToStorage();
+        noteInput.focus();
+      }
+    }
+
     // INICIALIZACION SEGURA
     document.addEventListener('DOMContentLoaded', () => {
       try { loadFromStorage(); } catch (e) { console.warn(e); }
       try { if (window.lucide) lucide.createIcons(); } catch (e) { console.warn(e); }
       try { initDropzone(); } catch (e) { console.warn(e); }
+      try {
+        const noteInput = document.getElementById('input-custom-notes');
+        if (noteInput) {
+          noteInput.addEventListener('input', () => saveToStorage());
+        }
+      } catch (e) {}
     });
 
     function switchNav(tab) {
@@ -798,43 +872,58 @@
         try {
           if (isPdf) {
             if (typeof pdfjsLib === 'undefined') {
-              throw new Error('PDF.js no se ha cargado en el navegador');
+              throw new Error('La librería PDF.js no se ha cargado.');
             }
             const buffer = await file.arrayBuffer();
             const uint8Data = new Uint8Array(buffer);
             
             const extractPdfPromise = (async () => {
-              const loadingTask = pdfjsLib.getDocument({
-                data: uint8Data,
-                isEvalSupported: false,
-                useSystemFonts: true
-              });
+              let loadingTask;
+              try {
+                loadingTask = pdfjsLib.getDocument({
+                  data: uint8Data,
+                  cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/',
+                  cMapPacked: true,
+                  verbosity: 0
+                });
+              } catch(e) {
+                loadingTask = pdfjsLib.getDocument({ data: uint8Data });
+              }
+
               const pdf = await loadingTask.promise;
               let fullText = '';
-              const maxP = Math.min(pdf.numPages, 30);
+              const maxP = Math.min(pdf.numPages, 40);
               for (let p = 1; p <= maxP; p++) {
                 try {
                   const page = await pdf.getPage(p);
                   const content = await page.getTextContent();
-                  fullText += content.items.map(i => i.str).join(' ') + '\n';
+                  const pageStr = content.items.map(i => (i && i.str) ? i.str : '').join(' ');
+                  if (pageStr.trim()) {
+                    fullText += pageStr + '\n';
+                  }
                 } catch (pe) {
                   console.warn(`Error leyendo página ${p}`, pe);
                 }
                 // Ceder el control al navegador para mantener la UI 100% fluida
-                await new Promise(r => setTimeout(r, 10));
-                if (fullText.length > 30000) break;
+                await new Promise(r => setTimeout(r, 5));
+                if (fullText.length > 40000) break;
               }
               return { text: fullText, pages: pdf.numPages };
             })();
 
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Tiempo de lectura de PDF agotado')), 15000)
+              setTimeout(() => reject(new Error('Tiempo de lectura de PDF agotado (15s)')), 15000)
             );
 
             const result = await Promise.race([extractPdfPromise, timeoutPromise]);
             item.text = cleanExtractedText(result.text) || result.text.trim();
-            item.status = item.text.length > 10 ? 'listo' : 'error';
-            item.size_label = `${result.pages} pág · ${Math.round((item.text.length || 1000)/1000)}k car.`;
+            if (item.text.length >= 10) {
+              item.status = 'listo';
+              item.size_label = `${result.pages} pág · ${Math.round(item.text.length / 1000)}k car.`;
+            } else {
+              item.status = 'error';
+              item.size_label = 'Sin texto digital (¿es imagen escaneada?)';
+            }
           } else {
             const txt = await file.text();
             item.text = cleanExtractedText(txt) || txt.trim();
@@ -844,7 +933,7 @@
         } catch (e) {
           console.error('Error al procesar archivo:', e);
           item.status = 'error';
-          item.size_label = 'Error al leer';
+          item.size_label = e.message || 'Error al leer';
         }
         saveToStorage();
         renderMaterials();
@@ -1000,12 +1089,12 @@
       return d;
     }
 
-    function generateSmartLocalCards(text, count, defaultTopic, difficulty, style) {
+    function generateSmartLocalCards(text, count, defaultTopic, difficulty, style, customNotes = '') {
       const cards = [];
       const cleanText = cleanExtractedText(text).replace(/\r\n/g, '\n');
       
       // 1. Dividir en unidades de estudio (líneas, viñetas, oraciones)
-      const rawUnits = [];
+      let rawUnits = [];
       const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l.length > 8);
       
       for (const line of lines) {
@@ -1014,6 +1103,28 @@
           rawUnits.push(...clauses);
         } else if (line.length >= 15) {
           rawUnits.push(line);
+        }
+      }
+
+      // Si hay notas de enfoque (ej. "tema 1", "definiciones", "fórmulas"), priorizar u ordenar unidades coincidentes
+      if (customNotes && customNotes.trim().length > 0) {
+        const keywords = customNotes.toLowerCase()
+          .replace(/[^\w\sáéíóúüñ]/gi, ' ')
+          .split(/\s+/)
+          .filter(k => k.length > 2 && !['solo', 'hacer', 'generar', 'para', 'sobre', 'del', 'los', 'las', 'que', 'con', 'por'].includes(k));
+        
+        if (keywords.length > 0) {
+          const focusedUnits = [];
+          const otherUnits = [];
+          for (const u of rawUnits) {
+            const uLower = u.toLowerCase();
+            const matches = keywords.some(k => uLower.includes(k));
+            if (matches) focusedUnits.push(u);
+            else otherUnits.push(u);
+          }
+          if (focusedUnits.length > 0) {
+            rawUnits = [...focusedUnits, ...otherUnits];
+          }
         }
       }
 
@@ -1239,24 +1350,44 @@
             tags: ['caso práctico', 'aplicación']
           });
           loopIdx++;
-        }
-      } else if (style === 'Concepto clave') {
-        while (cards.length < count && pedagogicalItems.length > 0) {
-          const item = pedagogicalItems[loopIdx % pedagogicalItems.length];
+        } else if (style === "Emparejamiento") {
+          const pair1 = pedagogicalItems[loopIdx % pedagogicalItems.length];
+          const pair2 = pedagogicalItems[(loopIdx + 1) % pedagogicalItems.length] || pair1;
+          
           cards.push({
             id: 'c-' + Math.random().toString(36).substr(2, 9),
-            question: `[Concepto Clave] Define con precisión el concepto de «${item.subject}» y su alcance:`,
-            answer: item.content,
+            question: `Empareja cada concepto con su definición:\n\n1. ${pair1.subject}\n2. ${pair2.subject}\n\nA. ${pair2.content.slice(0, 80)}...\nB. ${pair1.content.slice(0, 80)}...`,
+            answer: `Emparejamiento correcto:\n• 1 ➔ B (${pair1.subject})\n• 2 ➔ A (${pair2.subject})`,
             topic: item.topic || defaultTopic,
-            tags: ['concepto clave', 'esencial']
+            tags: ['relacionar', 'conceptos']
+          });
+          loopIdx += 2;
+        } else if (style === "Caso práctico") {
+          cards.push({
+            id: 'c-' + Math.random().toString(36).substr(2, 9),
+            question: `Caso de Estudio / Aplicación:\n\nEn un escenario profesional donde se requiere aplicar "${item.subject}", ¿cómo debe fundamentarse la solución basándose en sus principios?`,
+            answer: `Resolución aplicada:\nDebe fundamentarse en: ${item.content}\n\nRelevancia: Garantiza la correcta ejecución y cumplimiento del concepto.`,
+            topic: item.topic || defaultTopic,
+            tags: ['caso práctico', 'análisis']
           });
           loopIdx++;
-        }
-      } else {
-        // Pregunta Directa (Default con rotación de plantillas)
-        while (cards.length < count && pedagogicalItems.length > 0) {
-          const item = pedagogicalItems[loopIdx % pedagogicalItems.length];
-          const templateFn = directTemplates[loopIdx % directTemplates.length];
+        } else if (style === "Concepto clave") {
+          cards.push({
+            id: 'c-' + Math.random().toString(36).substr(2, 9),
+            question: `Concepto Clave: Explica la función y trascendencia de "${item.subject}".`,
+            answer: `Definición y Alcance:\n${item.content}`,
+            topic: item.topic || defaultTopic,
+            tags: ['esencial', 'síntesis']
+          });
+          loopIdx++;
+        } else {
+          // Pregunta directa
+          const templates = [
+            s => `¿Qué es y cómo se define "${s}"?`,
+            s => `¿Cuál es el propósito o función principal de "${s}"?`,
+            s => `Explique detalladamente el concepto de "${s}":`
+          ];
+          const templateFn = templates[cards.length % templates.length];
           cards.push({
             id: 'c-' + Math.random().toString(36).substr(2, 9),
             question: templateFn(item.subject),
@@ -1267,7 +1398,6 @@
           loopIdx++;
         }
       }
-
       return cards;
     }
 
@@ -1282,6 +1412,7 @@
       const lang = document.getElementById('pref-lang').value;
       const style = document.getElementById('pref-style').value;
       const defaultTopic = document.getElementById('input-topic').value.trim() || readyMaterials[0].topic || 'General';
+      const customNotes = document.getElementById('input-custom-notes')?.value.trim() || '';
 
       const btn = document.getElementById('btn-generate-main');
       const btnText = document.getElementById('btn-generate-text');
@@ -1352,13 +1483,30 @@
 - 'answer': Respuesta concisa, precisa y completa.`;
         }
 
-        // Pre-extracción inteligente para reducir tokens y responder en <5s
-        const textForAI = extractKeyUnits(combinedText, 5000);
+        // Directiva estricta de enfoque si el usuario especificó una instrucción o nota
+        let customFocusDirective = "";
+        if (customNotes) {
+          customFocusDirective = `
+══════════════════════════════════════════════════════════════════════
+🚨 DIRECTIVA DE ENFOQUE ESTRICTO DEL ESTUDIANTE (MÁXIMA PRIORIDAD):
+"${customNotes}"
 
-        // Prompt ultra-compacto: instrucciones mínimas + texto pre-filtrado
+REGLAS DE OBLIGATORIO CUMPLIMIENTO:
+1. Genera las flashcards enfocándote ÚNICA Y EXCLUSIVAMENTE en lo solicitado en la directiva de arriba.
+2. Si el estudiante especifica un tema, capítulo, sección o concepto concreto (ej: "Tema 1", "Capítulo 1", o una temática específica), IDENTIFICA y EXTRAE dicha sección dentro del material y DESCARTA todo lo demás.
+3. No generes preguntas de temas o contenidos que queden fuera del enfoque solicitado.
+══════════════════════════════════════════════════════════════════════`;
+        }
+
+        // Si hay directiva específica (ej. Tema 1), ampliamos la ventana de caracteres para que la IA disponga del material completo
+        const maxCharsLimit = customNotes ? 25000 : 8000;
+        const textForAI = combinedText.length <= maxCharsLimit ? combinedText : extractKeyUnits(combinedText, maxCharsLimit);
+
+        // Prompt de generación pedagógica
         const prompt = `Genera exactamente ${count} flashcards pedagógicas en formato JSON a partir del material dado.
 Estilo: ${style}. Nivel: ${difficulty}. Idioma: ${lang}.
 ${stylePromptGuideline}
+${customFocusDirective}
 Reglas: preguntas VARIADAS y DIRECTAS, respuestas CONCISAS y precisas.
 Responde estrictamente con este esquema JSON: {"cards":[{"question":"...","answer":"...","topic":"${defaultTopic}","tags":["tema"]}]}
 
@@ -1369,7 +1517,7 @@ ${textForAI}`;
           const vercelRes = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, count, topic: defaultTopic, engine: engineChoice })
+            body: JSON.stringify({ prompt, count, topic: defaultTopic, engine: engineChoice, customNotes })
           });
 
           if (vercelRes.ok) {
@@ -1396,7 +1544,7 @@ ${textForAI}`;
       if (!cardsResult || cardsResult.length === 0) {
         usedLocal = true;
         btnText.textContent = "Generando con Motor Local Inteligente...";
-        cardsResult = generateSmartLocalCards(combinedText, count, defaultTopic, difficulty, style);
+        cardsResult = generateSmartLocalCards(combinedText, count, defaultTopic, difficulty, style, customNotes);
         
         if (engineChoice === 'openrouter' || engineChoice === 'groq' || engineChoice === 'gemini') {
           alertBanner.classList.remove('hidden');

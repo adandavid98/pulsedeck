@@ -102,7 +102,7 @@ export default async function handler(req, res) {
             messages: [
               {
                 role: 'system',
-                content: 'Eres un profesor universitario experto en pedagogía. Responde ÚNICA Y EXCLUSIVAMENTE con un objeto JSON válido que contenga la clave "cards".'
+                content: 'Eres un profesor universitario experto en pedagogía y diseño de exámenes. Responde ÚNICA Y EXCLUSIVAMENTE con un objeto JSON válido con la clave "cards". Debes seguir ESTRICTAMENTE cualquier directiva de enfoque específico (como temas o capítulos concretos) solicitada en el mensaje.'
               },
               {
                 role: 'user',
@@ -181,7 +181,7 @@ export default async function handler(req, res) {
             messages: [
               {
                 role: 'system',
-                content: 'Eres un profesor universitario experto en pedagogía. Responde ÚNICA Y EXCLUSIVAMENTE con un objeto JSON válido que contenga la clave "cards".'
+                content: 'Eres un profesor universitario experto en pedagogía y diseño de exámenes. Responde ÚNICA Y EXCLUSIVAMENTE con un objeto JSON válido con la clave "cards". Debes seguir ESTRICTAMENTE cualquier directiva de enfoque específico (como temas o capítulos concretos) solicitada en el mensaje.'
               },
               {
                 role: 'user',
