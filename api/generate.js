@@ -68,69 +68,84 @@ export default async function handler(req, res) {
   const groqKey = process.env.GROQ_API_KEY || req.body?.groqApiKey || req.headers?.['x-groq-key'];
   const geminiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || req.body?.apiKey || req.headers?.['x-api-key'];
 
-  // ==================== MOTOR CEREBRAS CLOUD ULTRA-FAST (1,800 tok/s · LLaMA 3.3 70B) ====================
-  if (engine === 'cerebras' || (!groqKey && !geminiKey && !openRouterKey && cerebrasKey)) {
-    if (!cerebrasKey) {
-      return res.status(500).json({ error: 'CEREBRAS_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
-    }
+  // ==================== MOTOR CEREBRAS CLOUD ULTRA-FAST ====================
+  if (engine === 'cerebras') {
+    if (cerebrasKey) {
+      let cerebrasModels = ['llama-3.3-70b', 'gpt-oss-120b', 'gemma-4-31b', 'llama3.1-8b'];
+      const cleanedCerebrasKey = cerebrasKey.trim();
+      const authHeader = cleanedCerebrasKey.startsWith('Bearer ') ? cleanedCerebrasKey : `Bearer ${cleanedCerebrasKey}`;
 
-    const cerebrasModels = ['llama-3.3-70b', 'gpt-oss-120b', 'gemma-4-31b', 'llama3.1-8b'];
-    let lastCerebrasError = null;
-
-    const cleanedCerebrasKey = cerebrasKey.trim();
-    const authHeader = cleanedCerebrasKey.startsWith('Bearer ') ? cleanedCerebrasKey : `Bearer ${cleanedCerebrasKey}`;
-
-    for (const model of cerebrasModels) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000);
-
-        const cerebrasRes = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': authHeader,
-            'User-Agent': 'PulseDeck-AI/1.0 (Web Platform)'
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              {
-                role: 'system',
-                content: 'Eres un profesor universitario experto en pedagogía y diseño de exámenes. Responde ÚNICA Y EXCLUSIVAMENTE con un objeto JSON válido con la clave "cards". Debes seguir ESTRICTAMENTE cualquier directiva de enfoque específico (como temas o capítulos concretos) solicitada en el mensaje.'
-              },
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
-            response_format: { type: 'json_object' },
-            temperature: 0.2,
-            max_tokens: 4096
-          }),
-          signal: controller.signal
+        const modelsRes = await fetch('https://api.cerebras.ai/v1/models', {
+          headers: { 'Authorization': authHeader, 'User-Agent': 'PulseDeck-AI/1.0' }
         });
-
-        clearTimeout(timeoutId);
-
-        if (cerebrasRes.ok) {
-          const data = await cerebrasRes.json();
-          const rawText = data.choices?.[0]?.message?.content;
-          const parsed = parseCardsFromAIResponse(rawText);
-          if (parsed) return res.status(200).json(parsed);
-        } else {
-          const errData = await cerebrasRes.json().catch(() => ({}));
-          lastCerebrasError = errData.error?.message || `Cerebras Cloud (${model}) respondió con código ${cerebrasRes.status}`;
-          console.warn(`Cerebras modelo ${model} falló, intentando siguiente...`);
+        if (modelsRes.ok) {
+          const mData = await modelsRes.json();
+          const activeIds = (mData.data || []).map(m => m.id);
+          if (activeIds.length > 0) {
+            cerebrasModels = activeIds;
+          }
         }
-      } catch (error) {
-        lastCerebrasError = error.name === 'AbortError'
-          ? `Tiempo de espera agotado en Cerebras (${model})`
-          : error.message;
-      }
-    }
+      } catch (e) {}
 
-    return res.status(500).json({ error: lastCerebrasError || 'Error al comunicarse con Cerebras Cloud API' });
+      let lastCerebrasError = null;
+
+      for (const model of cerebrasModels) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+          const cerebrasRes = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader,
+              'User-Agent': 'PulseDeck-AI/1.0 (Web Platform)'
+            },
+            body: JSON.stringify({
+              model: model,
+              messages: [
+                {
+                  role: 'system',
+                  content: 'Eres un profesor universitario experto en pedagogía y diseño de exámenes. Responde ÚNICA Y EXCLUSIVAMENTE con un objeto JSON válido con la clave "cards". Debes seguir ESTRICTAMENTE cualquier directiva de enfoque específico (como temas o capítulos concretos) solicitada en el mensaje.'
+                },
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              response_format: { type: 'json_object' },
+              temperature: 0.2,
+              max_tokens: 4096
+            }),
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (cerebrasRes.ok) {
+            const data = await cerebrasRes.json();
+            const rawText = data.choices?.[0]?.message?.content;
+            const parsed = parseCardsFromAIResponse(rawText);
+            if (parsed) return res.status(200).json(parsed);
+          } else {
+            const errData = await cerebrasRes.json().catch(() => ({}));
+            lastCerebrasError = errData.error?.message || errData.message || `Cerebras Cloud (${model}) respondió con código ${cerebrasRes.status}`;
+            console.warn(`Cerebras modelo ${model} falló (${lastCerebrasError}), intentando siguiente...`);
+          }
+        } catch (error) {
+          lastCerebrasError = error.name === 'AbortError'
+            ? `Tiempo de espera agotado en Cerebras (${model})`
+            : error.message;
+        }
+      }
+
+      // Si Cerebras falló y NO hay otras claves, reportamos el error
+      if (!openRouterKey && !geminiKey) {
+        return res.status(500).json({ error: lastCerebrasError || 'Error al comunicarse con Cerebras Cloud API' });
+      }
+      console.warn('Cerebras no completó la petición. Activando fallback automático a OpenRouter/Gemini...');
+    }
   }
 
   // ==================== MOTOR 1: OPENROUTER (DeepSeek V3 / Llama 3.3 / Multi-IA) ====================
