@@ -144,8 +144,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'GROQ_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
     }
 
-    // Modelos de producción vigentes y ultra-rápidos de Groq
-    let groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
+    // Modelos oficiales y vigentes de Groq (Familia LLaMA 3.3 y 3.1)
+    let groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama-3.2-3b-preview', 'llama-3.2-1b-preview'];
     try {
       const modelsListRes = await fetch('https://api.groq.com/openai/v1/models', {
         headers: { 'Authorization': `Bearer ${groqKey.trim()}` }
@@ -157,7 +157,7 @@ export default async function handler(req, res) {
         if (valid.length > 0) {
           groqModels = valid;
         } else {
-          const fallbackLlamas = activeIds.filter(id => (id.includes('llama-3') || id.includes('mixtral')) && !id.includes('vision') && !id.includes('guard'));
+          const fallbackLlamas = activeIds.filter(id => id.startsWith('llama-3') && !id.includes('vision') && !id.includes('guard'));
           if (fallbackLlamas.length > 0) groqModels = fallbackLlamas;
         }
       }
