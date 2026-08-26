@@ -63,9 +63,75 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt es requerido' });
   }
 
+  const cerebrasKey = process.env.CEREBRAS_API_KEY || req.body?.cerebrasApiKey || req.headers?.['x-cerebras-key'] || 'csk-jyh22cx6n4eh84ek94fjdwtj6935k5m2rj8k6xhrkrjw8w3k';
   const openRouterKey = process.env.OPENROUTER_API_KEY || req.body?.openRouterApiKey || req.headers?.['x-openrouter-key'];
   const groqKey = process.env.GROQ_API_KEY || req.body?.groqApiKey || req.headers?.['x-groq-key'];
   const geminiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || req.body?.apiKey || req.headers?.['x-api-key'];
+
+  // ==================== MOTOR CEREBRAS CLOUD ULTRA-FAST (1,800 tok/s · LLaMA 3.3 70B) ====================
+  if (engine === 'cerebras' || (!groqKey && !geminiKey && !openRouterKey && cerebrasKey)) {
+    if (!cerebrasKey) {
+      return res.status(500).json({ error: 'CEREBRAS_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
+    }
+
+    const cerebrasModels = ['llama-3.3-70b', 'gpt-oss-120b', 'gemma-4-31b', 'llama3.1-8b'];
+    let lastCerebrasError = null;
+
+    const cleanedCerebrasKey = cerebrasKey.trim();
+    const authHeader = cleanedCerebrasKey.startsWith('Bearer ') ? cleanedCerebrasKey : `Bearer ${cleanedCerebrasKey}`;
+
+    for (const model of cerebrasModels) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+        const cerebrasRes = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authHeader,
+            'User-Agent': 'PulseDeck-AI/1.0 (Web Platform)'
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              {
+                role: 'system',
+                content: 'Eres un profesor universitario experto en pedagogía y diseño de exámenes. Responde ÚNICA Y EXCLUSIVAMENTE con un objeto JSON válido con la clave "cards". Debes seguir ESTRICTAMENTE cualquier directiva de enfoque específico (como temas o capítulos concretos) solicitada en el mensaje.'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.2,
+            max_tokens: 4096
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (cerebrasRes.ok) {
+          const data = await cerebrasRes.json();
+          const rawText = data.choices?.[0]?.message?.content;
+          const parsed = parseCardsFromAIResponse(rawText);
+          if (parsed) return res.status(200).json(parsed);
+        } else {
+          const errData = await cerebrasRes.json().catch(() => ({}));
+          lastCerebrasError = errData.error?.message || `Cerebras Cloud (${model}) respondió con código ${cerebrasRes.status}`;
+          console.warn(`Cerebras modelo ${model} falló, intentando siguiente...`);
+        }
+      } catch (error) {
+        lastCerebrasError = error.name === 'AbortError'
+          ? `Tiempo de espera agotado en Cerebras (${model})`
+          : error.message;
+      }
+    }
+
+    return res.status(500).json({ error: lastCerebrasError || 'Error al comunicarse con Cerebras Cloud API' });
+  }
 
   // ==================== MOTOR 1: OPENROUTER (DeepSeek V3 / Llama 3.3 / Multi-IA) ====================
   if (engine === 'openrouter' || (!groqKey && !geminiKey && openRouterKey)) {

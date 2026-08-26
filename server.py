@@ -8,6 +8,7 @@ PORT = 5500
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 # Puedes configurar tu API Key aquí o como variable de entorno
+CEREBRAS_API_KEY = os.environ.get("CEREBRAS_API_KEY", "csk-jyh22cx6n4eh84ek94fjdwtj6935k5m2rj8k6xhrkrjw8w3k")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", os.environ.get("GEMINI_API_KEY", ""))
 
 class PulseDeckHandler(http.server.SimpleHTTPRequestHandler):
@@ -22,20 +23,53 @@ class PulseDeckHandler(http.server.SimpleHTTPRequestHandler):
             try:
                 payload = json.loads(body_data.decode('utf-8'))
                 prompt = payload.get('prompt', '')
-                topic = payload.get('topic', 'General')
-                count = payload.get('count', 15)
+                engine = payload.get('engine', 'cerebras')
+                
+                # 1. MOTOR CEREBRAS CLOUD (LLaMA 3.3 70B · 1,800 tok/s)
+                if engine == 'cerebras' or (not GOOGLE_API_KEY and CEREBRAS_API_KEY):
+                    cerebras_key = CEREBRAS_API_KEY or os.environ.get("CEREBRAS_API_KEY", "")
+                    url = "https://api.cerebras.ai/v1/chat/completions"
+                    req_data = json.dumps({
+                        "model": "llama-3.3-70b",
+                        "messages": [
+                            {"role": "system", "content": "Eres un profesor universitario experto en pedagogía. Responde ÚNICA Y EXCLUSIVAMENTE con un objeto JSON válido con la clave 'cards'."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "response_format": {"type": "json_object"},
+                        "temperature": 0.2,
+                        "max_tokens": 4096
+                    }).encode('utf-8')
 
+                    req = urllib.request.Request(
+                        url,
+                        data=req_data,
+                        headers={
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {cerebras_key}"
+                        }
+                    )
+                    with urllib.request.urlopen(req, timeout=25) as resp:
+                        data = json.loads(resp.read().decode('utf-8'))
+                        raw_text = data["choices"][0]["message"]["content"]
+                        parsed = json.loads(raw_text)
+
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(parsed).encode('utf-8'))
+                        return
+
+                # 2. MOTOR GOOGLE GEMINI FLASH
                 api_key = GOOGLE_API_KEY or os.environ.get("GOOGLE_API_KEY", "")
                 if not api_key:
                     self.send_response(500)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
                     self.wfile.write(json.dumps({
-                        "error": "GOOGLE_API_KEY no configurada. Si estás en local, defínela con $env:GOOGLE_API_KEY='tu_clave' o pruébalo directamente en Vercel."
+                        "error": "Clave API no configurada para el motor seleccionado."
                     }).encode('utf-8'))
                     return
 
-                # Llamar a Google Gemini
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
                 req_data = json.dumps({
                     "contents": [{"parts": [{"text": prompt}]}],
