@@ -189,10 +189,10 @@
                 <span>Limpiar fuentes</span>
               </button>
             </div>
-            <div id="dropzone" class="mt-3.5 w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-800 hover:border-indigo-500/50 bg-zinc-950/40 hover:bg-zinc-950/80 transition-all duration-200 p-6 text-center relative">
-              <input type="file" id="pdf-input-file" accept=".pdf,.txt,.md" multiple class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
-              <div class="flex flex-col items-center justify-center">
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 mb-2">
+            <div id="dropzone" onclick="triggerFileInput(event)" class="mt-3.5 w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-800 hover:border-indigo-500/50 bg-zinc-950/40 hover:bg-zinc-950/80 transition-all duration-200 p-6 text-center relative group">
+              <input type="file" id="pdf-input-file" accept=".pdf,.txt,.md" multiple class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20" onchange="handleFileInputChange(this)">
+              <div class="flex flex-col items-center justify-center pointer-events-none relative z-10">
+                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 mb-2 group-hover:scale-105 transition-transform">
                   <i data-lucide="cloud-upload" class="h-7 w-7 text-indigo-400"></i>
                 </div>
                 <p class="text-xs font-medium text-zinc-200">Arrastra tus archivos PDF o notas aquí o haz clic para explorar</p>
@@ -827,10 +827,22 @@
     }
 
     // MANEJO DE ARCHIVOS PDF Y TEXTO
+    function triggerFileInput(e) {
+      if (e && e.target && e.target.id === 'pdf-input-file') return;
+      const input = document.getElementById('pdf-input-file');
+      if (input) input.click();
+    }
+
+    function handleFileInputChange(inputElem) {
+      if (inputElem && inputElem.files && inputElem.files.length > 0) {
+        handleFiles(inputElem.files);
+      }
+    }
+
     function initDropzone() {
       const drop = document.getElementById('dropzone');
       const input = document.getElementById('pdf-input-file');
-      if (!drop || !input) return;
+      if (!drop) return;
 
       // Prevenir comportamiento predeterminado del navegador (abrir archivo en nueva pestaña)
       window.addEventListener('dragover', (e) => e.preventDefault(), false);
@@ -862,12 +874,14 @@
         }
       }, false);
 
-      input.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files.length > 0) {
-          handleFiles(e.target.files);
-        }
-        input.value = '';
-      });
+      if (input) {
+        input.addEventListener('change', (e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            handleFiles(e.target.files);
+          }
+          input.value = '';
+        });
+      }
     }
 
     async function extractTextFromPdf(uint8Data) {
