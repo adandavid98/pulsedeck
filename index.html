@@ -25,8 +25,9 @@
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   
-  <!-- PDF.js para lectura de PDFs (Compatible con file://, localhost y Vercel) -->
+  <!-- PDF.js para lectura de PDFs (Carga directa de librería y worker para compatibilidad file:// y web) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
   <script>
     try {
       if (window.pdfjsLib) {
@@ -831,21 +832,105 @@
       const input = document.getElementById('pdf-input-file');
       if (!drop || !input) return;
 
-      drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('border-indigo-500'); });
-      drop.addEventListener('dragleave', () => drop.classList.remove('border-indigo-500'));
+      // Prevenir comportamiento predeterminado del navegador (abrir archivo en nueva pestaña)
+      window.addEventListener('dragover', (e) => e.preventDefault(), false);
+      window.addEventListener('drop', (e) => e.preventDefault(), false);
+
+      ['dragenter', 'dragover'].forEach(name => {
+        drop.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          drop.classList.add('border-indigo-500', 'bg-zinc-950/80');
+        }, false);
+      });
+
+      ['dragleave', 'dragend'].forEach(name => {
+        drop.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          drop.classList.remove('border-indigo-500', 'bg-zinc-950/80');
+        }, false);
+      });
+
       drop.addEventListener('drop', (e) => {
         e.preventDefault();
-        drop.classList.remove('border-indigo-500');
-        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          handleFiles(e.dataTransfer.files);
+        e.stopPropagation();
+        drop.classList.remove('border-indigo-500', 'bg-zinc-950/80');
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          handleFiles(dt.files);
         }
-      });
+      }, false);
+
       input.addEventListener('change', (e) => {
         if (e.target.files && e.target.files.length > 0) {
           handleFiles(e.target.files);
         }
         input.value = '';
       });
+    }
+
+    async function extractTextFromPdf(uint8Data) {
+      if (typeof pdfjsLib === 'undefined') {
+        throw new Error('La librería PDF.js no está lista.');
+      }
+
+      let fullText = '';
+      let numPages = 1;
+
+      try {
+        let loadingTask;
+        try {
+          loadingTask = pdfjsLib.getDocument({
+            data: uint8Data,
+            cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/',
+            cMapPacked: true,
+            verbosity: 0
+          });
+        } catch(e) {
+          loadingTask = pdfjsLib.getDocument({ data: uint8Data });
+        }
+
+        const pdf = await loadingTask.promise;
+        numPages = pdf.numPages || 1;
+        const maxP = Math.min(numPages, 50);
+
+        for (let p = 1; p <= maxP; p++) {
+          try {
+            const page = await pdf.getPage(p);
+            const content = await page.getTextContent();
+            if (content && content.items) {
+              const pageStr = content.items
+                .map(i => (i && i.str) ? i.str : '')
+                .filter(Boolean)
+                .join(' ');
+              if (pageStr.trim()) {
+                fullText += `[Página ${p}]\n` + pageStr + '\n\n';
+              }
+            }
+          } catch (pe) {
+            console.warn(`Página ${p}`, pe);
+          }
+          await new Promise(r => setTimeout(r, 5));
+          if (fullText.length > 50000) break;
+        }
+      } catch (pdfErr) {
+        console.warn('PDF.js standard parse failed, trying raw fallback...', pdfErr);
+      }
+
+      // Fallback de respaldo por decodificación directa de streams de texto
+      if (!fullText.trim()) {
+        try {
+          const rawDecoder = new TextDecoder('utf-8', { fatal: false });
+          const rawString = rawDecoder.decode(uint8Data);
+          const textMatches = [...rawString.matchAll(/\(([^()]{3,})\)\s*T[jJ]/g)].map(m => m[1]);
+          if (textMatches.length > 3) {
+            fullText = textMatches.join(' ');
+          }
+        } catch(e) {}
+      }
+
+      return { text: fullText.trim(), pages: numPages };
     }
 
     async function handleFiles(files) {
@@ -871,51 +956,15 @@
 
         try {
           if (isPdf) {
-            if (typeof pdfjsLib === 'undefined') {
-              throw new Error('La librería PDF.js no se ha cargado.');
-            }
             const buffer = await file.arrayBuffer();
             const uint8Data = new Uint8Array(buffer);
             
-            const extractPdfPromise = (async () => {
-              let loadingTask;
-              try {
-                loadingTask = pdfjsLib.getDocument({
-                  data: uint8Data,
-                  cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/',
-                  cMapPacked: true,
-                  verbosity: 0
-                });
-              } catch(e) {
-                loadingTask = pdfjsLib.getDocument({ data: uint8Data });
-              }
-
-              const pdf = await loadingTask.promise;
-              let fullText = '';
-              const maxP = Math.min(pdf.numPages, 40);
-              for (let p = 1; p <= maxP; p++) {
-                try {
-                  const page = await pdf.getPage(p);
-                  const content = await page.getTextContent();
-                  const pageStr = content.items.map(i => (i && i.str) ? i.str : '').join(' ');
-                  if (pageStr.trim()) {
-                    fullText += pageStr + '\n';
-                  }
-                } catch (pe) {
-                  console.warn(`Error leyendo página ${p}`, pe);
-                }
-                // Ceder el control al navegador para mantener la UI 100% fluida
-                await new Promise(r => setTimeout(r, 5));
-                if (fullText.length > 40000) break;
-              }
-              return { text: fullText, pages: pdf.numPages };
-            })();
-
+            const extractPromise = extractTextFromPdf(uint8Data);
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Tiempo de lectura de PDF agotado (15s)')), 15000)
+              setTimeout(() => reject(new Error('Tiempo de lectura agotado (20s)')), 20000)
             );
 
-            const result = await Promise.race([extractPdfPromise, timeoutPromise]);
+            const result = await Promise.race([extractPromise, timeoutPromise]);
             item.text = cleanExtractedText(result.text) || result.text.trim();
             if (item.text.length >= 10) {
               item.status = 'listo';
