@@ -144,7 +144,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'GROQ_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
     }
 
-    let groqModels = ['gpt-oss-120b', 'gpt-oss-20b', 'qwen3.6-27b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+    // Priorizamos LLaMA 3.3 70B y LLaMA 3.1 8B (este último con 20,000 TPM)
+    let groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it'];
     try {
       const modelsListRes = await fetch('https://api.groq.com/openai/v1/models', {
         headers: { 'Authorization': `Bearer ${groqKey.trim()}` }
@@ -155,15 +156,18 @@ export default async function handler(req, res) {
         const filtered = groqModels.filter(m => activeIds.includes(m));
         if (filtered.length > 0) {
           groqModels = filtered;
-        } else if (activeIds.length > 0) {
-          const chatModels = activeIds.filter(id => !id.includes('whisper') && !id.includes('vision') && !id.includes('guard'));
-          if (chatModels.length > 0) groqModels = chatModels;
         }
       }
     } catch (e) {
       console.warn('Auto-detección Groq omitida');
     }
     let lastGroqError = null;
+
+    // Asegurar que el prompt no exceda el límite seguro de tokens (~2500 tokens = ~10000 caracteres)
+    let safePrompt = prompt;
+    if (safePrompt.length > 12000) {
+      safePrompt = safePrompt.slice(0, 12000);
+    }
 
     for (const model of groqModels) {
       try {
@@ -185,12 +189,12 @@ export default async function handler(req, res) {
               },
               {
                 role: 'user',
-                content: prompt
+                content: safePrompt
               }
             ],
             response_format: { type: 'json_object' },
             temperature: 0.2,
-            max_tokens: 4096
+            max_tokens: 2048
           }),
           signal: controller.signal
         });
@@ -205,7 +209,11 @@ export default async function handler(req, res) {
         } else {
           const errData = await groqRes.json().catch(() => ({}));
           lastGroqError = errData.error?.message || `Groq API (${model}) respondió con código ${groqRes.status}`;
-          console.warn(`Groq modelo ${model} falló, intentando siguiente...`);
+          console.warn(`Groq modelo ${model} falló (${lastGroqError}), intentando siguiente modelo...`);
+          // Si el error fue por tamaño/TPM, recortamos el prompt aún más para el siguiente modelo
+          if (groqRes.status === 413 || (lastGroqError && lastGroqError.includes('TPM'))) {
+            safePrompt = safePrompt.slice(0, 7000);
+          }
         }
       } catch (error) {
         lastGroqError = error.name === 'AbortError'

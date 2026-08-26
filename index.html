@@ -1440,6 +1440,80 @@
       return cards;
     }
 
+    // Extracción semántica de la sección o capítulo solicitado por el usuario
+    function extractFocusedContent(fullText, customNotes, maxChars = 9000) {
+      if (!fullText) return '';
+      if (!customNotes || customNotes.trim().length === 0) {
+        return fullText.length <= maxChars ? fullText : fullText.slice(0, maxChars);
+      }
+
+      const lowerText = fullText.toLowerCase();
+      const cleanTokens = customNotes
+        .replace(/[^\wáéíóúüñ0-9\s]/gi, ' ')
+        .split(/\s+/)
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length >= 3 && !['solo', 'hacer', 'generar', 'flashcards', 'tarjetas', 'sobre', 'para', 'este', 'esta', 'estos', 'estas', 'del', 'los', 'las', 'una', 'uno', 'unos', 'unas', 'documento', 'documentos'].includes(t));
+
+      let bestStartIndex = -1;
+
+      // 1. Buscar coincidencia directa de capítulo / tema (ej: "capítulo 2", "capitulo 2", "tema 1")
+      const capMatch = customNotes.match(/(?:cap[ií]tulo|tema|unidad|m[oó]dulo|secci[oó]n)\s*([0-9ivxldcm]+|[a-z]+)/i);
+      if (capMatch) {
+        const needle = capMatch[0].toLowerCase();
+        bestStartIndex = lowerText.indexOf(needle);
+      }
+
+      // 2. Buscar frase de 2 palabras clave consecutivas (ej: "marco teórico")
+      if (bestStartIndex === -1 && cleanTokens.length >= 2) {
+        const phrase = cleanTokens.slice(0, 2).join(' ');
+        bestStartIndex = lowerText.indexOf(phrase);
+      }
+
+      // 3. Buscar la primera palabra clave distintiva
+      if (bestStartIndex === -1 && cleanTokens.length > 0) {
+        for (const token of cleanTokens) {
+          const idx = lowerText.indexOf(token);
+          if (idx !== -1) {
+            bestStartIndex = idx;
+            break;
+          }
+        }
+      }
+
+      if (bestStartIndex !== -1) {
+        const safeStart = Math.max(0, bestStartIndex - 80);
+        return fullText.slice(safeStart, safeStart + maxChars);
+      }
+
+      return fullText.length <= maxChars ? fullText : fullText.slice(0, maxChars);
+    }
+    window.extractFocusedContent = extractFocusedContent;
+    // Muestreo estratificado multicapítulo para libros y PDFs extensos (Groq / OpenRouter)
+    function extractUniformSample(fullText, totalChars = 9000, numChunks = 5) {
+      if (!fullText) return '';
+      if (fullText.length <= totalChars) return fullText;
+
+      const chunkSize = Math.floor(totalChars / numChunks);
+      const interval = fullText.length / numChunks;
+      const sampledChunks = [];
+
+      for (let i = 0; i < numChunks; i++) {
+        const targetStart = Math.floor(i * interval);
+        let chunkText = fullText.slice(targetStart, targetStart + chunkSize);
+        
+        const lastSpace = chunkText.lastIndexOf(' ');
+        if (lastSpace > chunkSize * 0.7) {
+          chunkText = chunkText.slice(0, lastSpace);
+        }
+
+        const percent = Math.round((targetStart / fullText.length) * 100);
+        sampledChunks.push(`[SECCIÓN DEL DOCUMENTO ~${percent}%]\n${chunkText.trim()}`);
+      }
+
+      return sampledChunks.join('\n\n');
+    }
+    window.extractUniformSample = extractUniformSample;
+
     // ==================== GENERACION PEDAGOGICA GEMINI IA ====================
     async function executeGeneration() {
       const readyMaterials = materials.filter(m => m.status === 'listo');
@@ -1532,18 +1606,32 @@
 
 REGLAS DE OBLIGATORIO CUMPLIMIENTO:
 1. Genera las flashcards enfocándote ÚNICA Y EXCLUSIVAMENTE en lo solicitado en la directiva de arriba.
-2. Si el estudiante especifica un tema, capítulo, sección o concepto concreto (ej: "Tema 1", "Capítulo 1", o una temática específica), IDENTIFICA y EXTRAE dicha sección dentro del material y DESCARTA todo lo demás.
+2. Si el estudiante especifica un tema, capítulo, sección o concepto concreto (ej: "Tema 1", "Capítulo 2", o una temática específica), IDENTIFICA y EXTRAE dicha sección dentro del material y DESCARTA todo lo demás.
 3. No generes preguntas de temas o contenidos que queden fuera del enfoque solicitado.
 ══════════════════════════════════════════════════════════════════════`;
         }
 
-        // Si hay directiva específica (ej. Tema 1), ampliamos la ventana de caracteres para que la IA disponga del material completo
-        const maxCharsLimit = customNotes ? 25000 : 8000;
-        const textForAI = combinedText.length <= maxCharsLimit ? combinedText : extractKeyUnits(combinedText, maxCharsLimit);
+        // Estrategia de ingestión de texto según el motor y la instrucción del usuario
+        let textForAI = "";
+        let distributionHint = "";
+
+        if (customNotes && customNotes.trim().length > 0) {
+          // Forma 3: Extracción Semántica Focalizada (Capítulo o tema solicitado)
+          textForAI = extractFocusedContent(combinedText, customNotes, engineChoice === 'gemini' ? 50000 : 9000);
+        } else {
+          if (engineChoice === 'gemini') {
+            // Forma 1: Ventana de Contexto Profundo (hasta 60,000 caracteres directos)
+            textForAI = combinedText.slice(0, 60000);
+          } else {
+            // Forma 2: Muestreo Estratificado Multicapítulo (distribuido a lo largo de todo el documento)
+            textForAI = extractUniformSample(combinedText, 9000, 5);
+            distributionHint = `\nDISTRIBUCIÓN REQUERIDA: El material contiene muestras de todas las etapas del documento. Distribuye las ${count} flashcards de manera balanceada y equitativa cubriendo todas las secciones.`;
+          }
+        }
 
         // Prompt de generación pedagógica
         const prompt = `Genera exactamente ${count} flashcards pedagógicas en formato JSON a partir del material dado.
-Estilo: ${style}. Nivel: ${difficulty}. Idioma: ${lang}.
+Estilo: ${style}. Nivel: ${difficulty}. Idioma: ${lang}.${distributionHint}
 ${stylePromptGuideline}
 ${customFocusDirective}
 Reglas: preguntas VARIADAS y DIRECTAS, respuestas CONCISAS y precisas.
