@@ -189,8 +189,8 @@
                 <span>Limpiar fuentes</span>
               </button>
             </div>
-            <div id="dropzone" onclick="triggerFileInput(event)" class="mt-3.5 w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-800 hover:border-indigo-500/50 bg-zinc-950/40 hover:bg-zinc-950/80 transition-all duration-200 p-6 text-center relative group">
-              <input type="file" id="pdf-input-file" accept=".pdf,.txt,.md" multiple class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20" onchange="handleFileInputChange(this)">
+            <div id="dropzone" class="mt-3.5 w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-800 hover:border-indigo-500/50 bg-zinc-950/40 hover:bg-zinc-950/80 transition-all duration-200 p-6 text-center relative group">
+              <input type="file" id="pdf-input-file" accept=".pdf,.txt,.md" multiple class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20">
               <div class="flex flex-col items-center justify-center pointer-events-none relative z-10">
                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 mb-2 group-hover:scale-105 transition-transform">
                   <i data-lucide="cloud-upload" class="h-7 w-7 text-indigo-400"></i>
@@ -827,18 +827,6 @@
     }
 
     // MANEJO DE ARCHIVOS PDF Y TEXTO
-    function triggerFileInput(e) {
-      if (e && e.target && e.target.id === 'pdf-input-file') return;
-      const input = document.getElementById('pdf-input-file');
-      if (input) input.click();
-    }
-
-    function handleFileInputChange(inputElem) {
-      if (inputElem && inputElem.files && inputElem.files.length > 0) {
-        handleFiles(inputElem.files);
-      }
-    }
-
     function initDropzone() {
       const drop = document.getElementById('dropzone');
       const input = document.getElementById('pdf-input-file');
@@ -949,16 +937,22 @@
 
     async function handleFiles(files) {
       if (!files || files.length === 0) return;
-      for (const file of files) {
+      const fileList = Array.from(files);
+      for (const file of fileList) {
         const lowerName = file.name.toLowerCase();
         const isPdf = lowerName.endsWith('.pdf');
         const isTxt = lowerName.endsWith('.txt') || lowerName.endsWith('.md');
         if (!isPdf && !isTxt) continue;
 
+        // Evitar duplicar el mismo archivo si ya se cargó
+        const alreadyExists = materials.some(m => m.name === file.name && m.rawSize === file.size && m.status === 'listo');
+        if (alreadyExists) continue;
+
         const id = 'mat-' + Math.random().toString(36).substr(2, 9);
         const item = {
           id,
           name: file.name,
+          rawSize: file.size,
           kind: isPdf ? 'pdf' : 'text',
           size_label: `${Math.round(file.size / 1024)} KB`,
           topic: file.name.replace(/\.[^/.]+$/, ''),
@@ -1002,6 +996,8 @@
         renderMaterials();
       }
     }
+    window.handleFiles = handleFiles;
+    window.extractTextFromPdf = extractTextFromPdf;
 
     function addManualSource() {
       const topic = document.getElementById('input-topic').value.trim() || 'General';
@@ -1413,44 +1409,24 @@
             tags: ['caso práctico', 'aplicación']
           });
           loopIdx++;
-        } else if (style === "Emparejamiento") {
-          const pair1 = pedagogicalItems[loopIdx % pedagogicalItems.length];
-          const pair2 = pedagogicalItems[(loopIdx + 1) % pedagogicalItems.length] || pair1;
-          
+        }
+      } else if (style === 'Concepto clave') {
+        while (cards.length < count && pedagogicalItems.length > 0) {
+          const item = pedagogicalItems[loopIdx % pedagogicalItems.length];
           cards.push({
             id: 'c-' + Math.random().toString(36).substr(2, 9),
-            question: `Empareja cada concepto con su definición:\n\n1. ${pair1.subject}\n2. ${pair2.subject}\n\nA. ${pair2.content.slice(0, 80)}...\nB. ${pair1.content.slice(0, 80)}...`,
-            answer: `Emparejamiento correcto:\n• 1 ➔ B (${pair1.subject})\n• 2 ➔ A (${pair2.subject})`,
+            question: `[Concepto Clave] Define con precisión el concepto de «${item.subject}» y su alcance:`,
+            answer: item.content,
             topic: item.topic || defaultTopic,
-            tags: ['relacionar', 'conceptos']
-          });
-          loopIdx += 2;
-        } else if (style === "Caso práctico") {
-          cards.push({
-            id: 'c-' + Math.random().toString(36).substr(2, 9),
-            question: `Caso de Estudio / Aplicación:\n\nEn un escenario profesional donde se requiere aplicar "${item.subject}", ¿cómo debe fundamentarse la solución basándose en sus principios?`,
-            answer: `Resolución aplicada:\nDebe fundamentarse en: ${item.content}\n\nRelevancia: Garantiza la correcta ejecución y cumplimiento del concepto.`,
-            topic: item.topic || defaultTopic,
-            tags: ['caso práctico', 'análisis']
+            tags: ['concepto clave', 'esencial']
           });
           loopIdx++;
-        } else if (style === "Concepto clave") {
-          cards.push({
-            id: 'c-' + Math.random().toString(36).substr(2, 9),
-            question: `Concepto Clave: Explica la función y trascendencia de "${item.subject}".`,
-            answer: `Definición y Alcance:\n${item.content}`,
-            topic: item.topic || defaultTopic,
-            tags: ['esencial', 'síntesis']
-          });
-          loopIdx++;
-        } else {
-          // Pregunta directa
-          const templates = [
-            s => `¿Qué es y cómo se define "${s}"?`,
-            s => `¿Cuál es el propósito o función principal de "${s}"?`,
-            s => `Explique detalladamente el concepto de "${s}":`
-          ];
-          const templateFn = templates[cards.length % templates.length];
+        }
+      } else {
+        // Pregunta Directa (Default)
+        while (cards.length < count && pedagogicalItems.length > 0) {
+          const item = pedagogicalItems[loopIdx % pedagogicalItems.length];
+          const templateFn = directTemplates[loopIdx % directTemplates.length];
           cards.push({
             id: 'c-' + Math.random().toString(36).substr(2, 9),
             question: templateFn(item.subject),
