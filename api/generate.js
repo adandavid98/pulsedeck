@@ -289,18 +289,18 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: lastGroqError || 'Error al comunicarse con Groq API' });
   }
 
-  // ==================== MOTOR 3: GOOGLE GEMINI FLASH (3.7 / 3.6) ====================
+  // ==================== MOTOR 3: GOOGLE GEMINI FLASH ====================
   if (!geminiKey) {
     return res.status(500).json({ error: 'GOOGLE_API_KEY no está configurada en las Variables de Entorno de Vercel.' });
   }
 
-  const geminiModels = ['gemini-3.7-flash', 'gemini-3.6-flash'];
+  const geminiModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
   let lastGeminiError = null;
 
   for (const mod of geminiModels) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       const googleRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${geminiKey.trim()}`,
